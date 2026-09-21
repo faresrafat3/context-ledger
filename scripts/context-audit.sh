@@ -66,13 +66,22 @@
 #   context-audit.sh --digests       digest and binding per document (ok/DRIFT/NEW/GONE · ok/no-repo/NO-COMMIT/FAIL);
 #                                    a GONE row's ON-DISK column names where the bytes survive
 #                                    (commit/index/stash/reflog/history/unreachable/no-trace)
+#   context-audit.sh --recover <path>
+#                                  for a GONE document: show what a recovery would do — the
+#                                  leg whose bytes survive, the remedy, the recorded sha256 —
+#                                  without touching anything. Refusals (exit 2): no digest
+#                                  row, no git blob handle, a protected zone, a path that
+#                                  exists, no trace anywhere
+#   context-audit.sh --recover <path> --yes
+#                                  restore from the recorded blob, then verify the bytes
+#                                  against the recorded digest; a mismatch is removed
 #   context-audit.sh --self-test     plant known lies in a fixture and prove they are caught
 #   context-audit.sh --help
 #
 # EXIT CODES
 #   0  report emitted / --check clean / --record pinned without refusing / self-test passed
 #   1  --check found a failure, or --record refused a document that no commit holds
-#   2  bad usage / missing declaration file / self-test failed
+#   2  bad usage / missing declaration file / self-test failed / --recover refused
 #
 set -euo pipefail
 
@@ -1111,6 +1120,54 @@ self_test(){
   got=$(rec2run --digests 2>/dev/null | awk '$1=="proj/AGENTS.md"{print $6}' || true)
   [ "$got" = "gone·no-trace" ] || { printf 'SELF-TEST: FAIL — after gc pulled every handle the probe did not report no-trace (got "%s")\n' "$got"; fails=$((fails+1)); }
 
+  # a row with no git handle (legacy, pre-binding) is refused, not guessed at
+  rc=0; got=$(rec2run --recover proj/AGENTS.md 2>&1) || rc=$?
+  [ "$rc" = 2 ] || { printf 'SELF-TEST: FAIL — --recover did not refuse a row with no git handle (rc=%s)\n' "$rc"; fails=$((fails+1)); }
+  printf '%s' "$got" | grep -q 'no git blob recorded' || { printf 'SELF-TEST: FAIL — the no-handle refusal does not name the missing handle\n'; fails=$((fails+1)); }
+
+
+  # ── --recover: the plan is shown without touching anything; --yes restores and verifies ──
+  mkdir -p "$tmp/rec3/proj"
+  printf 'proj/AGENTS.md\t1000\tedit\n' > "$tmp/rec3/ceilings.tsv"
+  printf 'digests.tsv\nPROTECTED.md\n' > "$tmp/rec3/.gitignore"
+  printf '# Rec3 fixture\n' > "$tmp/rec3/proj/README.md"
+  printf '# Recovery fixture\n\nOperations must never rename the archive directory in place.\n' > "$tmp/rec3/proj/AGENTS.md"
+  git init -q "$tmp/rec3" >/dev/null 2>&1 || true
+  git -C "$tmp/rec3" -c user.name=fixture -c user.email=fixture@invalid add -A >/dev/null 2>&1 || true
+  git -C "$tmp/rec3" -c user.name=fixture -c user.email=fixture@invalid commit -q -m 'rec3: base' >/dev/null 2>&1 || true
+  rec3run(){ CEILINGS="$tmp/rec3/ceilings.tsv" DIGESTS="$tmp/rec3/digests.tsv" HOME_DIR="$tmp/rec3" \
+             CONSTITUTION="$real_const" bash "$0" "$@" ; }
+  rec3run --record >/dev/null 2>&1 || true
+  rm "$tmp/rec3/proj/AGENTS.md"
+  git -C "$tmp/rec3" -c user.name=fixture -c user.email=fixture@invalid add -A >/dev/null 2>&1 || true
+  git -C "$tmp/rec3" -c user.name=fixture -c user.email=fixture@invalid commit -q -m 'rec3: deletion committed' >/dev/null 2>&1 || true
+
+  rc=0; plan=$(rec3run --recover proj/AGENTS.md 2>&1) || rc=$?
+  [ "$rc" = 0 ] || { printf 'SELF-TEST: FAIL — --recover refused to plan a committed deletion (rc=%s)\n' "$rc"; fails=$((fails+1)); }
+  printf '%s' "$plan" | grep -q 'recover plan for proj/AGENTS.md' || { printf 'SELF-TEST: FAIL — the recover plan does not name the path\n'; fails=$((fails+1)); }
+  printf '%s' "$plan" | grep -q 'remedy:'           || { printf 'SELF-TEST: FAIL — the recover plan does not state the remedy\n'; fails=$((fails+1)); }
+  printf '%s' "$plan" | grep -q 'dry-run'           || { printf 'SELF-TEST: FAIL — a plan run did not say it was a dry-run\n'; fails=$((fails+1)); }
+  [ ! -e "$tmp/rec3/proj/AGENTS.md" ] || { printf 'SELF-TEST: FAIL — a dry-run recover touched the disk\n'; fails=$((fails+1)); }
+
+  rec3run --recover proj/AGENTS.md --yes >/dev/null 2>&1 || { printf 'SELF-TEST: FAIL — --recover --yes failed on a committed deletion\n'; fails=$((fails+1)); }
+  got=$(sha256sum "$tmp/rec3/proj/AGENTS.md" 2>/dev/null | cut -d' ' -f1)
+  [ "$got" = "$(awk -F'\t' '$1=="proj/AGENTS.md"{print $2; exit}' "$tmp/rec3/digests.tsv")" ] \
+    || { printf 'SELF-TEST: FAIL — the restored bytes do not match the recorded digest\n'; fails=$((fails+1)); }
+
+  # a path that exists is refused, not clobbered
+  printf '# edited after restore\n' >> "$tmp/rec3/proj/AGENTS.md"
+  rec3run --recover proj/AGENTS.md --yes >/dev/null 2>&1 && { printf 'SELF-TEST: FAIL — --recover accepted a path that exists\n'; fails=$((fails+1)); }
+
+  # a protected zone is refused even though the bytes are recoverable
+  rm -f "$tmp/rec3/proj/AGENTS.md"
+  printf '## Protected zones\n\n| Zone | why |\n|---|---|\n| `proj/**` | fixture protected zone |\n' > "$tmp/rec3/PROTECTED.md"
+  git -C "$tmp/rec3" -c user.name=fixture -c user.email=fixture@invalid add -A >/dev/null 2>&1 || true
+  git -C "$tmp/rec3" -c user.name=fixture -c user.email=fixture@invalid commit -q -m 'rec3: deletion committed' >/dev/null 2>&1 || true
+  rc=0; plan=$(rec3run --recover proj/AGENTS.md --yes 2>&1) || rc=$?
+  [ "$rc" = 2 ] || { printf 'SELF-TEST: FAIL — --recover did not refuse inside a protected zone (rc=%s)\n' "$rc"; fails=$((fails+1)); }
+  printf '%s' "$plan" | grep -q 'protected zone' || { printf 'SELF-TEST: FAIL — the refusal does not name the protected zone\n'; fails=$((fails+1)); }
+  [ ! -e "$tmp/rec3/proj/AGENTS.md" ] || { printf 'SELF-TEST: FAIL — a protected refusal restored anything\n'; fails=$((fails+1)); }
+
   # ── the ledger's own binding ──────────────────────────────────────────────────
   # A clean fixture, because the ledger check has to be shown to PASS as well as to fail, and this
   # is the only place in the suite where --check is expected to exit 0 at all.
@@ -1152,11 +1209,62 @@ self_test(){
 
   rm -rf "$tmp"
   if [ "$fails" = 0 ]; then
-    printf 'SELF-TEST: PASS — slop lies (history/wall/emphasis/duplicate-heading/duplicate-invariant) caught; over-ceiling file failed --check; a silent rewrite registered as DRIFT; a deletion survived re-recording as GONE; a change with no commit was REFUSED by --record and stayed DRIFT; a change outside version control was REFUSED too; the same change was bound after being committed; a forged binding was caught while the digest layer still said ok; an unchanged out-of-git document was named (WARN) not failed; a clean committed fixture passed --check outright; a hand edit to the ledger failed it and left a finding; an edited copy of the tool itself was named as an uncommitted ledger file; a committed deletion was probed and named RECOVERABLE; an unstaged deletion named the index; a stashed deletion named the stash; a reflog-only deletion named the reflog; bytes held by a reachable ancestor were named history and survived gc; a reset-away blob was named unreachable; after gc pulled every handle the probe said no-trace; counts intact.\n'
+    printf 'SELF-TEST: PASS — slop lies (history/wall/emphasis/duplicate-heading/duplicate-invariant) caught; over-ceiling file failed --check; a silent rewrite registered as DRIFT; a deletion survived re-recording as GONE; a change with no commit was REFUSED by --record and stayed DRIFT; a change outside version control was REFUSED too; the same change was bound after being committed; a forged binding was caught while the digest layer still said ok; an unchanged out-of-git document was named (WARN) not failed; a clean committed fixture passed --check outright; a hand edit to the ledger failed it and left a finding; an edited copy of the tool itself was named as an uncommitted ledger file; a committed deletion was probed and named RECOVERABLE; an unstaged deletion named the index; a stashed deletion named the stash; a reflog-only deletion named the reflog; bytes held by a reachable ancestor were named history and survived gc; a reset-away blob was named unreachable; after gc pulled every handle the probe said no-trace; --recover showed a plan without touching the disk, --yes restored bytes that verified against the recorded digest, and it refused a path that exists, a protected zone, and a row with no git handle; counts intact.\n'
     exit 0
   fi
   printf 'SELF-TEST: FAIL — %s assertion(s) failed.\n' "$fails"
   exit 2
+}
+
+# ── --recover ──────────────────────────────────────────────────────────────────
+# Execute the remedy a GONE finding states: recover_plan shows the leg, the remedy and the
+# recorded sha256 without touching anything; recover_do restores the recorded blob and keeps
+# it only if the bytes hash back to the recorded digest. Refusals exit 2.
+recover_path='' recover_exec=0
+recover_plan(){   # <rel> — print the plan; rc 0 = restorable, rc 2 = refused
+  local rel="$1" abs repo rsha rblob leg
+  rsha="${REC[$rel]:-}"
+  [ -n "$rsha" ] || { printf 'recover: no digest row for %s — nothing was ever recorded to restore\n' "$rel" >&2; return 2; }
+  abs=$(abs_of "$rel")
+  if [ -e "$abs" ]; then
+    printf 'recover: %s exists on disk — ok/DRIFT belongs to the digest layer, not to --recover\n' "$rel" >&2
+    return 2
+  fi
+  if is_protected "$abs"; then
+    printf 'recover: %s sits inside a protected zone — deletions there are an Owner ruling; refusing\n' "$rel" >&2
+    return 2
+  fi
+  repo=$(repo_of "$rel")
+  [ -n "$repo" ] || { printf 'recover: %s sits outside any git repository — no handle exists to restore from\n' "$rel" >&2; return 2; }
+  rblob="${RBLOB[$rel]:--}"
+  case "$rblob" in
+    -|'') printf 'recover: no git blob recorded for %s — nothing exact to restore from; refusing\n' "$rel" >&2; return 2 ;;
+  esac
+  leg=$(recovery_probe "$rel" "$rsha")
+  [ -n "$leg" ] || { printf 'recover: the probe found no trace of %s (recorded commit, index, stash, reflog, history, unreachable objects)\n' "$rel" >&2; return 2; }
+  printf 'recover plan for %s\n' "$rel"
+  printf '  recorded: sha256 %s, blob %s\n' "${rsha:0:12}" "${rblob:0:12}"
+  printf '  where:    %s\n' "${leg%%$'\t'*}"
+  printf '  remedy:   write blob %s to %s, then verify the sha256\n' "${rblob:0:12}" "$rel"
+}
+recover_do(){     # <rel> — restore the recorded blob, then verify it against the recorded digest
+  local rel="$1" abs repo got
+  abs=$(abs_of "$rel"); repo=$(repo_of "$rel")
+  mkdir -p "$(dirname "$abs")"
+  git -C "$repo" cat-file blob "${RBLOB[$rel]}" > "$abs" 2>/dev/null \
+    || { printf 'recover: the recorded blob for %s no longer exists — nothing holds the recorded bytes\n' "$rel" >&2; return 1; }
+  got=$(sha_of "$abs")
+  if [ "$got" != "${REC[$rel]}" ]; then
+    printf 'recover: restored %s does NOT hash to the recorded digest — removing the restore\n' "$rel" >&2
+    rm -f "$abs"
+    return 1
+  fi
+  printf 'recover: %s restored — sha256 verified against the recorded digest\n' "$rel"
+}
+recover_run(){
+  recover_plan "$recover_path" || exit $?
+  if [ "$recover_exec" = 1 ]; then recover_do "$recover_path" || exit 1
+  else printf '  dry-run — pass --yes to execute this plan\n'; fi
 }
 
 # ── main ───────────────────────────────────────────────────────────────────────
@@ -1176,6 +1284,15 @@ for a in "$@"; do
     --density)   mode=density ;;
     --digests)   mode=digests ;;
     --record)    mode=record ;;   # exits non-zero when it refuses a document with no commit
+    --recover)
+      recover_path="${2:-}"
+      if [ -z "$recover_path" ] || [ "${recover_path#-}" != "$recover_path" ]; then
+        die "--recover needs a document path (try --help)"
+      fi
+      mode=recover
+      shift ;;
+    --yes)       recover_exec=1 ;;
+    "$recover_path") ;;  # the --recover operand, consumed above
     "")          ;;
     *)           die "unknown argument: $a (try --help)" ;;
   esac
@@ -1207,6 +1324,7 @@ case "$mode" in
   density)  density_view ;;
   digests)  digests_view ;;
   record)   record_digests || exit 1 ;;
+  recover)  recover_run ;;
   report)  report ;;
   write)
     mkdir -p "$OUT"
