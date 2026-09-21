@@ -25,6 +25,10 @@
 #   Rows still at a policy target are documents with a known duplicate home that no pass has
 #   reached — the gate stays red for them by design, with a numeric finish line.
 #
+# Bindings added 2026-09-21 (deep-dive round): CONSTITUTION.md binds to the one-file
+# $HOME repository created for exactly this row; anatomy-lab/README.md + PROTECTED.md
+# bind to the lab repository initialized the same round (its frozen SOULs and
+# declarations were unversioned evidence — the crew-loss failure class).
 # path	ceiling	zone
 CONSTITUTION.md	-	law
 Projects/notrick/AGENTS.md	-	protected
