@@ -143,6 +143,16 @@ deployed to the live runtime — `bash scripts/install.sh` (bundle + **38 skills
 `~/.dsh/skills/`), verified by spot-check and by `collect.sh` now reporting "runtime and repo
 agree". Remaining outside this session: the concurrent lane's in-flight dsh-plugins work.
 
+### 9b. Concurrent-writer incident #2, same hour (filed, fixed, disclosed)
+
+A concurrent writer replaced the working tree's `scripts/context-audit.sh` with an 11-byte
+`PLACEHOLDER` (mtime 08:25:37). The next ledger commit (`a87f2f1`, meant to record a
+one-paragraph note edit) then swept it in via `git add -A` — **the add was mine, and it was
+the error**: staging a ledger-wide `-A` without a diff review is the "silent fix" class this
+workspace bans. Restored verbatim from `a87f2f1^` (57,618 bytes) in commit `57343bd`;
+`--self-test` PASS (its whole known-positive battery), `--check` exit 0 again. Rule taken:
+in the ledger repo, read `git diff` before any `git add -A`.
+
 
 
 
