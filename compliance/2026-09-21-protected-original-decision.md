@@ -23,7 +23,7 @@ executed shape is the right one:
 |---|---|---|
 | original bytes — **adopted** | live declaration | `crew-research-council/PROTECTED.md` (blob `5b8cc782…`, sha256 `a12092df…`, 41 L / 2375 B) |
 | supersession record — dated sibling | live record | `crew-research-council/PROTECTED-RECOVERY-20260921.md` |
-| interim reconstruction — **superseded** | history only | `9304650:PROTECTED.md` (sha256 `f17a238d…`). No file on disk carries its text; verified by search |
+| interim reconstruction — **superseded** | history only | `9304650:PROTECTED.md` (sha256 `f17a238d…`). No file on disk *presents itself as* the declaration; the text survives only as quoted evidence, in this record and in `local/context/2026-09-21-receipt.md` |
 | evidence copy | byte-identical to the adopted file | `local/compliance/evidence/crew-research-council-PROTECTED.original-20260921.md` |
 
 So both halves of the question are satisfied, in the order that matters: the *declaration* is the
@@ -141,6 +141,9 @@ than edited there:
    question.**
 3. **Scope.** §11 called the original's hash unknowable and its referent list unrecoverable; both are
    now measured (§15 of the receipt records the first, this file records the second).
+4. **This record's own first draft** said no file on disk carries the superseded reconstruction's
+   text. Two do — this record and the receipt, as quoted evidence. Corrected here rather than left to
+   read as verified, since the claim was about this record itself.
 
 ## Open items — filed, not closed
 
