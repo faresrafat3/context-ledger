@@ -39,6 +39,8 @@
 #   writes inside a protected zone. `--check` fails; it does not fix. Findings are filed.
 #   It never commits. The commit that binds a recording is the Owner's act; `--record` only
 #   refuses until that commit exists, so it cannot bless a change the repository does not hold.
+#   It does hold its own ledger to the same rule: `ceilings.tsv`, `digests.tsv` and this script
+#   must each match a commit, or `--check` fails (see "THE LEDGER'S OWN BINDING" below).
 #   Tokens are an ESTIMATE (bytes/4, stated because no tokenizer is used); words, lines and
 #   bytes are exact. `git` is required for the binding layer; if it is missing the binding
 #   fails loudly rather than degrading to no protection at all.
@@ -49,8 +51,8 @@
 #   context-audit.sh --slop          only the slop findings, with file:line
 #   context-audit.sh --write         write REGISTRY.md + registry.tsv + slop.tsv to $OUT
 #   context-audit.sh --check         exit 1 on a missing declared file, an edit-zone document over
-#                                    its ceiling, a digest failure (DRIFT / NEW / GONE), or a broken
-#                                    commit binding (BIND-FAIL / NO-COMMIT)
+#                                    its ceiling, a digest failure (DRIFT / NEW / GONE), a broken
+#                                    commit binding (BIND-FAIL / NO-COMMIT), or an uncommitted ledger
 #   context-audit.sh --strict        --check plus hard slop (walls, duplicate homes)
 #   context-audit.sh --discover      context-looking docs on disk that no row declares
 #   context-audit.sh --density       numbers / citations / falsifiers per 100 words, per doc
@@ -434,14 +436,15 @@ if command -v git >/dev/null 2>&1; then GIT_OK=1; fi
 # usually live in a handful of repositories, and `rev-parse --show-toplevel` walks upward.
 # `+set` distinguishes a cached empty answer (no repo) from a key that was never computed.
 declare -A REPO_OF=()
-repo_of(){
-  local f="$1" d r
-  d=$(dirname "$(abs_of "$f")")
+repo_of_abs(){
+  local abs="$1" d r
+  d=$(dirname "$abs")
   if [ -n "${REPO_OF[$d]+set}" ]; then printf '%s' "${REPO_OF[$d]}"; return 0; fi
   r=$(git -C "$d" rev-parse --show-toplevel 2>/dev/null || true)
   REPO_OF["$d"]="$r"
   printf '%s' "$r"
 }
+repo_of(){ repo_of_abs "$(abs_of "$1")"; }
 
 # one line: state <TAB> blob <TAB> commit <TAB> bind   (state: ok | uncommitted | untracked | no-repo)
 # `git diff --quiet HEAD -- <rel>` compares the working tree to HEAD across staged and unstaged
@@ -500,6 +503,91 @@ bind_label(){
     bind-fail:*)  printf 'FAIL' ;;
     *)            printf '?' ;;
   esac
+}
+
+# ── the ledger's own binding ────────────────────────────────────────────────────
+# Everything above binds DOCUMENTS to commits. The three files the gate itself reads were the last
+# thing in the workspace with no history behind them: the declaration says what is measured, the
+# recording says what was blessed, and this tool is the logic that decides. Any of the three could
+# be rewritten or deleted in place and leave nothing behind — which is how
+# crew-research-council/PROTECTED.md was lost (§11 of the receipt). So the same question is asked of
+# them: does a commit hold these bytes?
+#
+# Scope, stated so it is not a hidden rule: only ledger files INSIDE $HOME_DIR are checked. A
+# self-test run points HOME_DIR at a fixture, so the fixture's ledger is what gets judged and the
+# real tool is not dragged in.
+#
+# Honest ceiling: this stops at "whatever is committed". A commit that weakens the checker is not
+# detected by the checker — the diff is the only signal. Git is the anchor here, not cryptography.
+LEDGER_FAILS=0
+LEDGER_FINDINGS=""
+# THE LEDGER'S OWN BINDING — the gate's three inputs (the declaration `ceilings.tsv`, the
+# recording `digests.tsv`, and this script) are held to the same question as the documents: does a
+# commit hold these bytes? A `dirty` or `untracked` or `no-repo` answer is a failure, because an
+# edit to any of the three changes what the gate says without leaving a trace.
+
+tool_abs(){
+  case "$0" in
+    /*)  printf '%s' "$0" ;;
+    */*) printf '%s/%s' "$PWD" "$0" ;;
+    *)   printf '%s/%s' "$PWD" "$0" ;;
+  esac
+}
+
+# ok | dirty | untracked | no-repo | no-git | absent
+ledger_state(){
+  local abs="$1" repo rel
+  [ -f "$abs" ] || { printf 'absent'; return 0; }
+  [ "$GIT_OK" = 1 ] || { printf 'no-git'; return 0; }
+  repo=$(repo_of_abs "$abs")
+  [ -n "$repo" ] || { printf 'no-repo'; return 0; }
+  rel="${abs#"$repo"/}"
+  if ! git -C "$repo" cat-file -e "HEAD:$rel" 2>/dev/null; then printf 'untracked'; return 0; fi
+  if ! git -C "$repo" diff --quiet HEAD -- "$rel" 2>/dev/null; then printf 'dirty'; return 0; fi
+  printf 'ok'
+}
+
+ledger_abs_list(){
+  local a t
+  for a in "$CEILINGS" "$DIGESTS"; do
+    a=$(abs_of "$a")
+    case "$a" in "$HOME_DIR"/*) printf '%s\n' "$a" ;; esac
+  done
+  t=$(tool_abs)
+  case "$t" in "$HOME_DIR"/*) [ -f "$t" ] && printf '%s\n' "$t" ;; esac
+}
+
+build_ledger_findings(){
+  LEDGER_FINDINGS=""; LEDGER_FAILS=0
+  local a st fails=0
+  while IFS= read -r a; do
+    [ -n "$a" ] || continue
+    st=$(ledger_state "$a")
+    case "$st" in
+      ok)        ;;
+      absent)    fails=$((fails+1)); LEDGER_FINDINGS="${LEDGER_FINDINGS}FAIL  [ledger] ${a#$HOME_DIR/}: missing"$'\n' ;;
+      no-git)    fails=$((fails+1)); LEDGER_FINDINGS="${LEDGER_FINDINGS}FAIL  [ledger] ${a#$HOME_DIR/}: git is unavailable, so its history cannot be checked"$'\n' ;;
+      no-repo)   fails=$((fails+1)); LEDGER_FINDINGS="${LEDGER_FINDINGS}FAIL  [ledger] ${a#$HOME_DIR/}: not under version control — an edit or a deletion leaves no trace (git init, then commit it)"$'\n' ;;
+      untracked) fails=$((fails+1)); LEDGER_FINDINGS="${LEDGER_FINDINGS}FAIL  [ledger] ${a#$HOME_DIR/}: not committed — nothing in history holds it"$'\n' ;;
+      dirty)     fails=$((fails+1)); LEDGER_FINDINGS="${LEDGER_FINDINGS}FAIL  [ledger] ${a#$HOME_DIR/}: uncommitted changes — commit it, so any edit leaves a trace"$'\n' ;;
+    esac
+  done < <(ledger_abs_list)
+  LEDGER_FAILS=$fails
+}
+
+# one header line for the report: which commit the ledger is at, and whether it is clean
+ledger_headline(){
+  local a st repo commit any=0 dirty=0
+  while IFS= read -r a; do
+    [ -n "$a" ] || continue
+    any=$((any+1))
+    st=$(ledger_state "$a")
+    [ "$st" = ok ] || dirty=$((dirty+1))
+    repo=$(repo_of_abs "$a")
+    if [ -n "$repo" ]; then commit=$(git -C "$repo" rev-parse --short=8 HEAD 2>/dev/null || true); else commit='-'; fi
+  done < <(ledger_abs_list)
+  if [ "$any" = 0 ]; then printf 'not in scope'; return 0; fi
+  if [ "$dirty" = 0 ]; then printf '%s · %s files committed' "$commit" "$any"; else printf '%s · %s of %s file(s) not committed' "$commit" "$dirty" "$any"; fi
 }
 
 load_digests(){
@@ -669,6 +757,14 @@ record_digests(){
   mv "$tmp" "$DIGESTS"
   printf 'recorded: %s doc(s) — %s unchanged, %s changed, %s added, %s carried forward (file gone), %s unbound (no repo)\n' \
     "${#SURF[@]}" "$unchanged" "$changed" "$added" "$carried" "$unbound"
+  # the recording just changed, so the ledger it lives in is now uncommitted. Say so here rather
+  # than only at --check time: this is the step at which a trace is either kept or dropped.
+  local dst
+  dst=$(ledger_state "$(abs_of "$DIGESTS")")
+  case "$dst" in
+    dirty|untracked) printf 'note: the recording is now uncommitted — commit it, so the re-record leaves a trace.\n' >&2 ;;
+    no-repo)         printf 'note: the recording sits outside version control — nothing holds its history (git init, then commit it).\n' >&2 ;;
+  esac
   if [ "$refused" -gt 0 ]; then
     printf 'record-refused: %s document(s) have no commit to bind to — a change with no commit cannot be blessed.\n' "$refused" >&2
     return 1
@@ -689,6 +785,7 @@ report(){
   printf '> declaration digest: sha256=%s · bytes=%s\n' \
     "$(sha256sum "$CEILINGS" 2>/dev/null | sed 's/[[:space:]].*$//')" \
     "$(wc -c < "$CEILINGS" 2>/dev/null | tr -d ' ')"
+  printf '> ledger: %s\n' "$(ledger_headline)"
   printf '> Counts are computed at emit time (R14). Re-run this file; never edit it.\n'
   printf '> words/lines/bytes are exact; tokens are an ESTIMATE (bytes/4).\n'
   printf '> The law is §3 of `CONSTITUTION.md`: reduce lines, never reduce meaning.\n'
@@ -718,6 +815,8 @@ report(){
     "$(printf '%s' "$ROWS" | sed '/^$/d' | fld 2 | grep -c '^CONFLICT$' || true)" "$sw"
   printf 'digest_failures=%s  unbound=%s  (DRIFT / NEW / GONE / BIND-FAIL; run --digests for the table,\n' "$DIG_FAILS" "$DIG_UNBOUND"
   printf '%s--record to pin intent; a recording is bound to the commit that holds its bytes)\n' '  '
+  printf 'ledger_failures=%s  (the declaration, the recording and this tool must each be committed:\n' "$LEDGER_FAILS"
+  printf '%san uncommitted ledger is an edit with no trace)\n' '  '
   printf 'walls=%s  dup_headings=%s  dup_invariants=%s  history=%s  status=%s  preamble=%s  emphasis=%s  caps=%s\n' \
     "$(slop_count WALL)" "$(slop_count DUP-HEADING)" "$(slop_count DUP-INVARIANT)" \
     "$(slop_count HISTORY)" "$(slop_count STATUS)" "$(slop_count PREAMBLE)" \
@@ -726,6 +825,7 @@ report(){
   printf '\n## 3. Findings — filed, not fixed\n\n```\n'
   slop_view
   printf '%s' "$DIG_FINDINGS" | sed '/^$/d'
+  printf '%s' "$LEDGER_FINDINGS" | sed '/^$/d'
   printf '```\n'
 }
 
@@ -843,9 +943,48 @@ self_test(){
   [ "$got" = "ok FAIL" ] || { printf 'SELF-TEST: FAIL — a forged binding was not caught (got \"%s\", want \"ok FAIL\")\n' "$got"; fails=$((fails+1)); }
   bindrun --check >/dev/null 2>&1 && { printf 'SELF-TEST: FAIL — a forged binding passed --check\n'; fails=$((fails+1)); }
 
+  # ── the ledger's own binding ──────────────────────────────────────────────────
+  # A clean fixture, because the ledger check has to be shown to PASS as well as to fail, and this
+  # is the only place in the suite where --check is expected to exit 0 at all.
+  mkdir -p "$tmp/ledger/proj"
+  printf 'proj/AGENTS.md\t1000\tedit\n' > "$tmp/ledger/ceilings.tsv"   # relative to HOME_DIR, not to $tmp
+  printf '# Ledger fixture\n\nOperations must never rename the archive directory in place.\n' \
+    > "$tmp/ledger/proj/AGENTS.md"
+  git init -q "$tmp/ledger" >/dev/null 2>&1 || true
+  git -C "$tmp/ledger" -c user.name=fixture -c user.email=fixture@invalid add -A >/dev/null 2>&1 || true
+  git -C "$tmp/ledger" -c user.name=fixture -c user.email=fixture@invalid commit -q -m 'fixture: clean ledger' >/dev/null 2>&1 || true
+  ledrun(){ CEILINGS="$tmp/ledger/ceilings.tsv" DIGESTS="$tmp/ledger/digests.tsv" HOME_DIR="$tmp/ledger" \
+            CONSTITUTION="$real_const" bash "$0" "$@" ; }
+  ledrun --record >/dev/null 2>&1 || { printf 'SELF-TEST: FAIL — --record failed on the clean ledger fixture\n'; fails=$((fails+1)); }
+  git -C "$tmp/ledger" -c user.name=fixture -c user.email=fixture@invalid add -A >/dev/null 2>&1 || true
+  git -C "$tmp/ledger" -c user.name=fixture -c user.email=fixture@invalid commit -q -m 'fixture: record it' >/dev/null 2>&1 || true
+  ledrun --check >/dev/null 2>&1 || { printf 'SELF-TEST: FAIL — --check failed on a clean, fully committed fixture\n'; fails=$((fails+1)); }
+
+  # a hand edit to the ledger: no finding and no exit code would mean the trace is gone
+  printf '# a hand edit to the ledger\n' >> "$tmp/ledger/digests.tsv"
+  ledrun --check >/dev/null 2>&1 && { printf 'SELF-TEST: FAIL — a hand edit to the ledger passed --check\n'; fails=$((fails+1)); }
+  got=$(ledrun --check 2>&1 | grep -c 'FAIL  \[ledger\]' || true)
+  [ "$got" -ge 1 ] || { printf 'SELF-TEST: FAIL — a hand edit to the ledger left no finding\n'; fails=$((fails+1)); }
+  git -C "$tmp/ledger" checkout -- digests.tsv >/dev/null 2>&1 || true
+  ledrun --check >/dev/null 2>&1 || { printf 'SELF-TEST: FAIL — committing the ledger back did not clear the finding\n'; fails=$((fails+1)); }
+
+  # the enforcer is in the ledger set too: a copy living inside HOME_DIR must be committed, or the
+  # logic that decides PASS can be rewritten without a trace (the regress has to stop somewhere,
+  # and it stops at "the committed tool is the reference behaviour")
+  cp "$(tool_abs)" "$tmp/ledger/tool.sh"
+  git -C "$tmp/ledger" -c user.name=fixture -c user.email=fixture@invalid add -A >/dev/null 2>&1 || true
+  git -C "$tmp/ledger" -c user.name=fixture -c user.email=fixture@invalid commit -q -m 'fixture: the tool' >/dev/null 2>&1 || true
+  runled(){ CEILINGS="$tmp/ledger/ceilings.tsv" DIGESTS="$tmp/ledger/digests.tsv" HOME_DIR="$tmp/ledger" \
+            CONSTITUTION="$real_const" bash "$tmp/ledger/tool.sh" "$@" ; }
+  runled --check >/dev/null 2>&1 || { printf 'SELF-TEST: FAIL — a committed tool copy failed --check\n'; fails=$((fails+1)); }
+  printf '\n# a hand edit to the tool\n' >> "$tmp/ledger/tool.sh"
+  runled --check >/dev/null 2>&1 && { printf 'SELF-TEST: FAIL — an edited tool copy passed --check\n'; fails=$((fails+1)); }
+  got=$(runled --check 2>&1 | grep -c 'FAIL  \[ledger\] .*tool\.sh' || true)
+  [ "$got" -ge 1 ] || { printf 'SELF-TEST: FAIL — an edited tool copy was not named as an uncommitted ledger file\n'; fails=$((fails+1)); }
+
   rm -rf "$tmp"
   if [ "$fails" = 0 ]; then
-    printf 'SELF-TEST: PASS — slop lies (history/wall/emphasis/duplicate-heading/duplicate-invariant) caught; over-ceiling file failed --check; a silent rewrite registered as DRIFT; a deletion survived re-recording as GONE; a change with no commit was REFUSED by --record and stayed DRIFT; a change outside version control was REFUSED too; the same change was bound after being committed; a forged binding was caught while the digest layer still said ok; an unchanged out-of-git document was named (WARN) not failed; counts intact.\n'
+    printf 'SELF-TEST: PASS — slop lies (history/wall/emphasis/duplicate-heading/duplicate-invariant) caught; over-ceiling file failed --check; a silent rewrite registered as DRIFT; a deletion survived re-recording as GONE; a change with no commit was REFUSED by --record and stayed DRIFT; a change outside version control was REFUSED too; the same change was bound after being committed; a forged binding was caught while the digest layer still said ok; an unchanged out-of-git document was named (WARN) not failed; a clean committed fixture passed --check outright; a hand edit to the ledger failed it and left a finding; an edited copy of the tool itself was named as an uncommitted ledger file; counts intact.\n'
     exit 0
   fi
   printf 'SELF-TEST: FAIL — %s assertion(s) failed.\n' "$fails"
@@ -881,6 +1020,7 @@ load_protected
 measure
 load_digests || true
 build_digest_findings
+build_ledger_findings
 collect_duplicates
 dup_rows "$DUP_H" DUP-HEADING
 dup_rows "$DUP_N" DUP-INVARIANT
@@ -922,12 +1062,13 @@ case "$mode" in
     over=$(printf '%s' "$ROWS" | sed '/^$/d' | fld 2 | grep -c '^OVER$' || true)
     miss=$(printf '%s' "$ROWS" | sed '/^$/d' | fld 2 | grep -c '^MISSING$' || true)
     conf=$(printf '%s' "$ROWS" | sed '/^$/d' | fld 2 | grep -c '^CONFLICT$' || true)
-    printf '\ncheck: over_ceiling=%s missing=%s conflicts=%s digest_failures=%s unbound=%s hard_slop=%s (strict=%s)\n' \
-      "$over" "$miss" "$conf" "$DIG_FAILS" "$DIG_UNBOUND" "$hard" "$strict"
-    if [ "$over" = 0 ] && [ "$miss" = 0 ] && [ "$hard" = 0 ] && [ "$DIG_FAILS" = 0 ]; then
+    printf '\ncheck: over_ceiling=%s missing=%s conflicts=%s digest_failures=%s unbound=%s ledger_failures=%s hard_slop=%s (strict=%s)\n' \
+      "$over" "$miss" "$conf" "$DIG_FAILS" "$DIG_UNBOUND" "$LEDGER_FAILS" "$hard" "$strict"
+    if [ "$over" = 0 ] && [ "$miss" = 0 ] && [ "$hard" = 0 ] && [ "$DIG_FAILS" = 0 ] && [ "$LEDGER_FAILS" = 0 ]; then
       printf 'check: PASS — every declared document exists, is within ceiling, matches its recording,\n'
       printf 'check: and every recording is bound to a commit that proves those bytes.\n'
       [ "$DIG_UNBOUND" = 0 ] || printf 'check: NOTE — %s recording(s) sit outside version control (unbound, listed as WARN above).\n' "$DIG_UNBOUND"
+      printf 'check: the ledger itself is committed, so an edit to it would leave a trace.\n'
       exit 0
     fi
     printf 'check: FAIL — findings above are filed, not fixed (exit 1).\n'

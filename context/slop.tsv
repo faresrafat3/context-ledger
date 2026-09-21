@@ -12,7 +12,7 @@ CAPS	Projects/deepseek-harness/docs/AGENTS.md	0	13 all-caps token(s) in prose
 CAPS	Projects/deepseek-harness/packages/AGENTS.md	0	3 all-caps token(s) in prose
 CAPS	Projects/deepseek-harness/packages/README.md	0	13 all-caps token(s) in prose
 CAPS	Projects/deepseek-harness/README.md	0	5 all-caps token(s) in prose
-CAPS	Projects/dyno-pony/AGENT-ERGONOMICS.md	0	23 all-caps token(s) in prose
+CAPS	Projects/dyno-pony/AGENT-ERGONOMICS.md	0	27 all-caps token(s) in prose
 CAPS	Projects/dyno-pony/PROTECTED.md	0	14 all-caps token(s) in prose
 CAPS	Projects/dyno-pony/README.md	0	6 all-caps token(s) in prose
 CAPS	Projects/knowledge-factory/design.md	0	37 all-caps token(s) in prose
@@ -25,9 +25,9 @@ CAPS	Projects/notrick/INTEGRITY.md	0	10 all-caps token(s) in prose
 CAPS	Projects/notrick/ONBOARDING.md	0	23 all-caps token(s) in prose
 CAPS	Projects/notrick/README.md	0	32 all-caps token(s) in prose
 CAPS	Projects/notrick/RULES.md	0	19 all-caps token(s) in prose
-DUP-HEADING	Projects/dyno-pony/PROTECTED.md:29 Projects/knowledge-factory/PROTECTED.md:13 crew-research-council/PROTECTED.md:28 anatomy-lab/PROTECTED.md:21	0	duplicate home: "safe write path"
-DUP-HEADING	Projects/dyno-pony/PROTECTED.md:33 crew-research-council/PROTECTED.md:32 anatomy-lab/PROTECTED.md:25	0	duplicate home: "local laws that bind any edit here"
-DUP-HEADING	Projects/dyno-pony/PROTECTED.md:51 Projects/knowledge-factory/PROTECTED.md:19 crew-research-council/PROTECTED.md:39 anatomy-lab/PROTECTED.md:31	0	duplicate home: "if you believe a protected file must change"
+DUP-HEADING	Projects/dyno-pony/PROTECTED.md:29 Projects/knowledge-factory/PROTECTED.md:13 crew-research-council/PROTECTED.md:30 anatomy-lab/PROTECTED.md:21	0	duplicate home: "safe write path"
+DUP-HEADING	Projects/dyno-pony/PROTECTED.md:33 crew-research-council/PROTECTED.md:34 anatomy-lab/PROTECTED.md:25	0	duplicate home: "local laws that bind any edit here"
+DUP-HEADING	Projects/dyno-pony/PROTECTED.md:51 Projects/knowledge-factory/PROTECTED.md:19 crew-research-council/PROTECTED.md:41 anatomy-lab/PROTECTED.md:31	0	duplicate home: "if you believe a protected file must change"
 DUP-HEADING	Projects/dyno-pony/PROTECTED.md:5 Projects/knowledge-factory/PROTECTED.md:4 crew-research-council/PROTECTED.md:16 anatomy-lab/PROTECTED.md:5	0	duplicate home: "protected do not edit in place"
 DUP-HEADING	Projects/notrick/FOUNDATIONAL-BRIEF.md:12 Projects/knowledge-factory/README.md:4	0	duplicate home: "what this is"
 HISTORY	Projects/deepseek-harness/docs/AGENTS.md	38	- **Document current state, not change history.** Avoid "previously/now/no longer", PRs, commits, and stack po

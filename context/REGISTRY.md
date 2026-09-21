@@ -1,7 +1,8 @@
 # CONTEXT REGISTRY — generated, not law
 
-> generated: 2026-09-21 07:27 · declaration: `local/context/ceilings.tsv` · tool: `local/scripts/context-audit.sh`
+> generated: 2026-09-21 07:38 · declaration: `local/context/ceilings.tsv` · tool: `local/scripts/context-audit.sh`
 > declaration digest: sha256=9e885282fef15077c228f01f3bf478291530dea87e32e9721ca75c3fce2edaac · bytes=3136
+> ledger: 5cdaeeb2 · 1 of 3 file(s) not committed
 > Counts are computed at emit time (R14). Re-run this file; never edit it.
 > words/lines/bytes are exact; tokens are an ESTIMATE (bytes/4).
 > The law is §3 of `CONSTITUTION.md`: reduce lines, never reduce meaning.
@@ -14,7 +15,7 @@
 | document | status | lines | bytes | words | ~tok | ceiling | zone | bind |
 |---|---|---|---|---|---|---|---|---|
 | `CONSTITUTION.md` | law | 106 | 8810 | 1297 | 2203 | - | law | no-repo |
-| `Projects/notrick/AGENTS.md` | protected | 49 | 4400 | 674 | 1100 | - | protected | NO-COMMIT |
+| `Projects/notrick/AGENTS.md` | protected | 74 | 5018 | 806 | 1255 | - | protected | NO-COMMIT |
 | `Projects/notrick/RULES.md` | protected | 82 | 5255 | 838 | 1314 | - | protected | ok |
 | `Projects/notrick/INTEGRITY.md` | protected | 107 | 8903 | 773 | 2226 | - | protected | ok |
 | `Projects/notrick/ONBOARDING.md` | protected | 55 | 3787 | 602 | 947 | - | protected | ok |
@@ -29,24 +30,26 @@
 | `Projects/deepseek-harness/docs/AGENTS.md` | project-gated | 75 | 10535 | 1317 | 2634 | - | project-gated | ok |
 | `Projects/deepseek-harness/packages/AGENTS.md` | project-gated | 28 | 6166 | 717 | 1542 | - | project-gated | ok |
 | `Projects/deepseek-harness/packages/README.md` | project-gated | 114 | 7926 | 911 | 1982 | - | project-gated | ok |
-| `Projects/dyno-pony/AGENT-ERGONOMICS.md` | ok | 145 | 9322 | 1498 | 2331 | 1580 | edit | ok |
+| `Projects/dyno-pony/AGENT-ERGONOMICS.md` | ok | 91 | 8235 | 1277 | 2059 | 1580 | edit | ok |
 | `Projects/dyno-pony/README.md` | ok | 114 | 6343 | 794 | 1586 | 970 | edit | NO-COMMIT |
 | `Projects/dyno-pony/PROTECTED.md` | declaration | 53 | 4136 | 586 | 1034 | - | declaration | NO-COMMIT |
 | `Projects/knowledge-factory/README.md` | ok | 16 | 1324 | 160 | 331 | 170 | edit | NO-COMMIT |
 | `Projects/knowledge-factory/design.md` | OVER | 442 | 47181 | 6369 | 11796 | 5080 | edit | ok |
 | `Projects/knowledge-factory/PROTECTED.md` | declaration | 20 | 1596 | 228 | 399 | - | declaration | NO-COMMIT |
 | `crew-research-council/README.md` | ok | 32 | 2230 | 344 | 558 | 370 | edit | NO-COMMIT |
-| `crew-research-council/PROTECTED.md` | declaration | 41 | 2543 | 423 | 636 | - | declaration | NO-COMMIT |
+| `crew-research-council/PROTECTED.md` | declaration | 43 | 2545 | 423 | 637 | - | declaration | NO-COMMIT |
 | `anatomy-lab/README.md` | ok | 24 | 2041 | 180 | 511 | 210 | edit | no-repo |
 | `anatomy-lab/PROTECTED.md` | declaration | 33 | 2176 | 322 | 544 | - | declaration | no-repo |
 
 ## 2. Counts (generated at emit time)
 
 ```
-declared=26  surface_total_words=33730  surface_total_bytes=253600
+declared=26  surface_total_words=33641  surface_total_bytes=253133
 over_ceiling=1  missing=0  conflicts=0  slop_findings=65
-digest_failures=20  unbound=3  (DRIFT / NEW / GONE / BIND-FAIL; run --digests for the table,
+digest_failures=19  unbound=3  (DRIFT / NEW / GONE / BIND-FAIL; run --digests for the table,
   --record to pin intent; a recording is bound to the commit that holds its bytes)
+ledger_failures=1  (the declaration, the recording and this tool must each be committed:
+  an uncommitted ledger is an edit with no trace)
 walls=6  dup_headings=5  dup_invariants=0  history=15  status=10  preamble=3  emphasis=0  caps=26
 ```
 
@@ -66,7 +69,7 @@ CAPS       Projects/deepseek-harness/docs/AGENTS.md:0  13 all-caps token(s) in p
 CAPS       Projects/deepseek-harness/packages/AGENTS.md:0  3 all-caps token(s) in prose
 CAPS       Projects/deepseek-harness/packages/README.md:0  13 all-caps token(s) in prose
 CAPS       Projects/deepseek-harness/README.md:0  5 all-caps token(s) in prose
-CAPS       Projects/dyno-pony/AGENT-ERGONOMICS.md:0  23 all-caps token(s) in prose
+CAPS       Projects/dyno-pony/AGENT-ERGONOMICS.md:0  27 all-caps token(s) in prose
 CAPS       Projects/dyno-pony/PROTECTED.md:0  14 all-caps token(s) in prose
 CAPS       Projects/dyno-pony/README.md:0  6 all-caps token(s) in prose
 CAPS       Projects/knowledge-factory/design.md:0  37 all-caps token(s) in prose
@@ -79,9 +82,9 @@ CAPS       Projects/notrick/INTEGRITY.md:0  10 all-caps token(s) in prose
 CAPS       Projects/notrick/ONBOARDING.md:0  23 all-caps token(s) in prose
 CAPS       Projects/notrick/README.md:0  32 all-caps token(s) in prose
 CAPS       Projects/notrick/RULES.md:0  19 all-caps token(s) in prose
-DUP-HEADING Projects/dyno-pony/PROTECTED.md:29 Projects/knowledge-factory/PROTECTED.md:13 crew-research-council/PROTECTED.md:28 anatomy-lab/PROTECTED.md:21:0  duplicate home: "safe write path"
-DUP-HEADING Projects/dyno-pony/PROTECTED.md:33 crew-research-council/PROTECTED.md:32 anatomy-lab/PROTECTED.md:25:0  duplicate home: "local laws that bind any edit here"
-DUP-HEADING Projects/dyno-pony/PROTECTED.md:51 Projects/knowledge-factory/PROTECTED.md:19 crew-research-council/PROTECTED.md:39 anatomy-lab/PROTECTED.md:31:0  duplicate home: "if you believe a protected file must change"
+DUP-HEADING Projects/dyno-pony/PROTECTED.md:29 Projects/knowledge-factory/PROTECTED.md:13 crew-research-council/PROTECTED.md:30 anatomy-lab/PROTECTED.md:21:0  duplicate home: "safe write path"
+DUP-HEADING Projects/dyno-pony/PROTECTED.md:33 crew-research-council/PROTECTED.md:34 anatomy-lab/PROTECTED.md:25:0  duplicate home: "local laws that bind any edit here"
+DUP-HEADING Projects/dyno-pony/PROTECTED.md:51 Projects/knowledge-factory/PROTECTED.md:19 crew-research-council/PROTECTED.md:41 anatomy-lab/PROTECTED.md:31:0  duplicate home: "if you believe a protected file must change"
 DUP-HEADING Projects/dyno-pony/PROTECTED.md:5 Projects/knowledge-factory/PROTECTED.md:4 crew-research-council/PROTECTED.md:16 anatomy-lab/PROTECTED.md:5:0  duplicate home: "protected do not edit in place"
 DUP-HEADING Projects/notrick/FOUNDATIONAL-BRIEF.md:12 Projects/knowledge-factory/README.md:4:0  duplicate home: "what this is"
 HISTORY    Projects/deepseek-harness/docs/AGENTS.md:38  - **Document current state, not change history.** Avoid "previously/now/no longer", PRs, commits, and stack po
@@ -119,7 +122,6 @@ WALL       Projects/notrick/CONTEXT.md:705  325 words on one physical line
 WALL       Projects/notrick/CONTEXT.md:706  436 words on one physical line
 WALL       Projects/notrick/CONTEXT.md:99  159 words on one physical line
 WARN  [bind] CONSTITUTION.md: outside any git repository — bytes pinned, but no commit holds them
-FAIL  [digest] Projects/notrick/AGENTS.md: bytes changed since the last recording — re-record if intended, and record why
 FAIL  [bind] Projects/notrick/AGENTS.md: sits in a git repository but its recording carries no commit — re-record after committing
 FAIL  [digest] Projects/notrick/README.md: bytes changed since the last recording — re-record if intended, and record why
 FAIL  [bind] Projects/notrick/README.md: sits in a git repository but its recording carries no commit — re-record after committing
@@ -127,6 +129,7 @@ FAIL  [digest] Projects/colony-kernel/AGENTS.md: bytes changed since the last re
 FAIL  [bind] Projects/colony-kernel/AGENTS.md: sits in a git repository but its recording carries no commit — re-record after committing
 FAIL  [digest] Projects/colony-kernel/README.md: bytes changed since the last recording — re-record if intended, and record why
 FAIL  [bind] Projects/colony-kernel/README.md: sits in a git repository but its recording carries no commit — re-record after committing
+FAIL  [digest] Projects/dyno-pony/AGENT-ERGONOMICS.md: bytes changed since the last recording — re-record if intended, and record why
 FAIL  [digest] Projects/dyno-pony/README.md: bytes changed since the last recording — re-record if intended, and record why
 FAIL  [bind] Projects/dyno-pony/README.md: sits in a git repository but its recording carries no commit — re-record after committing
 FAIL  [digest] Projects/dyno-pony/PROTECTED.md: bytes changed since the last recording — re-record if intended, and record why
@@ -135,10 +138,10 @@ FAIL  [bind] Projects/knowledge-factory/README.md: sits in a git repository but 
 FAIL  [bind] Projects/knowledge-factory/PROTECTED.md: sits in a git repository but its recording carries no commit — re-record after committing
 FAIL  [digest] crew-research-council/README.md: bytes changed since the last recording — re-record if intended, and record why
 FAIL  [bind] crew-research-council/README.md: sits in a git repository but its recording carries no commit — re-record after committing
-FAIL  [digest] crew-research-council/PROTECTED.md: bytes changed since the last recording — re-record if intended, and record why
 FAIL  [bind] crew-research-council/PROTECTED.md: sits in a git repository but its recording carries no commit — re-record after committing
 FAIL  [digest] anatomy-lab/README.md: bytes changed since the last recording — re-record if intended, and record why
 WARN  [bind] anatomy-lab/README.md: outside any git repository — bytes pinned, but no commit holds them
 FAIL  [digest] anatomy-lab/PROTECTED.md: bytes changed since the last recording — re-record if intended, and record why
 WARN  [bind] anatomy-lab/PROTECTED.md: outside any git repository — bytes pinned, but no commit holds them
+FAIL  [ledger] local/scripts/context-audit.sh: uncommitted changes — commit it, so any edit leaves a trace
 ```

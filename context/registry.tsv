@@ -1,6 +1,6 @@
 path	status	lines	bytes	words	est_tokens	ceiling	zone
 CONSTITUTION.md	law	106	8810	1297	2203	-	law
-Projects/notrick/AGENTS.md	protected	49	4400	674	1100	-	protected
+Projects/notrick/AGENTS.md	protected	74	5018	806	1255	-	protected
 Projects/notrick/RULES.md	protected	82	5255	838	1314	-	protected
 Projects/notrick/INTEGRITY.md	protected	107	8903	773	2226	-	protected
 Projects/notrick/ONBOARDING.md	protected	55	3787	602	947	-	protected
@@ -15,13 +15,13 @@ Projects/deepseek-harness/README.md	project-gated	63	2201	238	551	-	project-gate
 Projects/deepseek-harness/docs/AGENTS.md	project-gated	75	10535	1317	2634	-	project-gated
 Projects/deepseek-harness/packages/AGENTS.md	project-gated	28	6166	717	1542	-	project-gated
 Projects/deepseek-harness/packages/README.md	project-gated	114	7926	911	1982	-	project-gated
-Projects/dyno-pony/AGENT-ERGONOMICS.md	ok	145	9322	1498	2331	1580	edit
+Projects/dyno-pony/AGENT-ERGONOMICS.md	ok	91	8235	1277	2059	1580	edit
 Projects/dyno-pony/README.md	ok	114	6343	794	1586	970	edit
 Projects/dyno-pony/PROTECTED.md	declaration	53	4136	586	1034	-	declaration
 Projects/knowledge-factory/README.md	ok	16	1324	160	331	170	edit
 Projects/knowledge-factory/design.md	OVER	442	47181	6369	11796	5080	edit
 Projects/knowledge-factory/PROTECTED.md	declaration	20	1596	228	399	-	declaration
 crew-research-council/README.md	ok	32	2230	344	558	370	edit
-crew-research-council/PROTECTED.md	declaration	41	2543	423	636	-	declaration
+crew-research-council/PROTECTED.md	declaration	43	2545	423	637	-	declaration
 anatomy-lab/README.md	ok	24	2041	180	511	210	edit
 anatomy-lab/PROTECTED.md	declaration	33	2176	322	544	-	declaration
