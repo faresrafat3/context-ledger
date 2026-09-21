@@ -120,6 +120,29 @@ __________ (empty-by-right)
 its formal Owner ruling line remains empty-by-right — and every decision D1–D11 is revocable in
 one line. §6 ruling line stays empty-by-right.
 
+## 9. Deep-dive round (same day, after §8): the audit surface closes green
+
+The workspace's own measurement tool — `local/scripts/context-audit.sh`, built by the concurrent
+lane the same day, executing CONSTITUTION.md §3 — was discovered mid-audit and run. Its verdict
+at start: `over_ceiling=1` (`knowledge-factory/design.md` 6369/5080), `digest_failures=23`,
+3 refusals (declared documents outside version control).
+
+| item | resolution | evidence |
+|---|---|---|
+| design.md OVER | compressed under the tool's own acceptance test: **6369 → 5065 words (−20.5%)** with `CITE=145`, `FALSE=12`, `NUM=78` unchanged (any counter drop = lost fact; none occurred). Identity break vs the `wiki/` + archive copies recorded (`86f00db1…` → `2131c13d…`; frozen copies untouched) | kf commit `86d0557`; `--density` row 5065/78/145/12 |
+| digest_failures 23 → 0 | `--record` re-bound every changed row to its commit (colony `142fec0` · dyno `0d26a9f`/`b5c52b6` · crew `726049b` · kf `64b7291`/`86d0557` · notrick `168052e`/`b60ae35`) | local `0241baa` · `28f3663` · `9ab6ac3` · `99f5caa` |
+| 3 refusals (out-of-VC) | **anatomy-lab** got a repo — `e20b65f`, 522 tracked (16 frozen SOULs, docs, briefs, review packets; `results/`+`node_modules/`+`dist/` ignored with reasons) · **`$HOME`** got a one-file repo for `CONSTITUTION.md` — `acabaad` | `--record` → **0 unbound** |
+
+**Final gate:** `context-audit.sh --check` → **exit 0** — `over_ceiling=0 missing=0 conflicts=0
+digest_failures=0 unbound=0 ledger_failures=0 hard_slop=0`; every recording bound to a commit.
+Round-4 receipt: `local/context/2026-09-21-receipt-round4.md`. Surface: 26 declared documents,
+32,639 words / 248,265 bytes, all green.
+
+**Left to the Owner (not agent acts):** deploy the condensed dyno-pony repo state to the live
+runtime (`scripts/install.sh` — the SHIP verb; the runtime is a running system), and the
+concurrent lane's in-flight dsh-plugins work (tree dirty at hand-off, 4 files).
+
+
 
 
 
