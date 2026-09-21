@@ -1,0 +1,52 @@
+{
+  "root": "/home/fares/.dsh/sessions",
+  "total": 98,
+  "ok": 6,
+  "skip": 92,
+  "fail": 0,
+  "duration_ms": 1494,
+  "manifest": [
+    {
+      "session": "/home/fares/.dsh/sessions/--home-fares--/session-3ee08d29-e374-4fe0-8e74-a8545ceaebcc/session.jsonl.zstd",
+      "status": "ok",
+      "v2": "/home/fares/.dsh/sessions/--home-fares--/session-3ee08d29-e374-4fe0-8e74-a8545ceaebcc/session.v2.jsonl.zstd",
+      "v0sha256": "23e202138e2111b8bbfed13cbb8fdcdefa71656d1e37f91eef84a302f0a7ec5b",
+      "outputSize": 3005970
+    },
+    {
+      "session": "/home/fares/.dsh/sessions/--home-fares--/session-881d3914-da69-484b-8a95-6ee132a05418/session.jsonl.zstd",
+      "status": "ok",
+      "v2": "/home/fares/.dsh/sessions/--home-fares--/session-881d3914-da69-484b-8a95-6ee132a05418/session.v2.jsonl.zstd",
+      "v0sha256": "08dc2fdd851d9dfed448a1675c7356a96b4a03867facc04dfe708a78ad30732f",
+      "outputSize": 441241
+    },
+    {
+      "session": "/home/fares/.dsh/sessions/--home-fares--/session-be02873e-2aa7-480f-b848-40433d2bd6e0/session.jsonl.zstd",
+      "status": "ok",
+      "v2": "/home/fares/.dsh/sessions/--home-fares--/session-be02873e-2aa7-480f-b848-40433d2bd6e0/session.v2.jsonl.zstd",
+      "v0sha256": "d8f186d27021ffb3f4844cee817b5104f92abe529cf705bbb992e23ef2637601",
+      "outputSize": 139792
+    },
+    {
+      "session": "/home/fares/.dsh/sessions/--home-fares--/session-cd297089-3bf4-4a0c-930a-edf854c99448/session.jsonl.zstd",
+      "status": "ok",
+      "v2": "/home/fares/.dsh/sessions/--home-fares--/session-cd297089-3bf4-4a0c-930a-edf854c99448/session.v2.jsonl.zstd",
+      "v0sha256": "c1070efe8bf138c754acae0be359a340150ed5a1ef435bc6d96d6cfd63d0781b",
+      "outputSize": 96323
+    },
+    {
+      "session": "/home/fares/.dsh/sessions/--home-fares--/session-cf5e5f0d-7a36-407b-a5ea-d2fa9ec61888/session.jsonl.zstd",
+      "status": "ok",
+      "v2": "/home/fares/.dsh/sessions/--home-fares--/session-cf5e5f0d-7a36-407b-a5ea-d2fa9ec61888/session.v2.jsonl.zstd",
+      "v0sha256": "4a9a8673280fe9ffedd78bcd9e51689cd4110cd69648f4f6c02909f4e55af228",
+      "outputSize": 605064
+    },
+    {
+      "session": "/home/fares/.dsh/sessions/--media-fares-Ventoy1--/session-0d1c3590-0f9e-4a30-9d9a-84feb8d61d17/session.jsonl.zstd",
+      "status": "ok",
+      "v2": "/home/fares/.dsh/sessions/--media-fares-Ventoy1--/session-0d1c3590-0f9e-4a30-9d9a-84feb8d61d17/session.v2.jsonl.zstd",
+      "v0sha256": "6f262a5d292bd307493a3cbf7a604977691f357e62131a49a0a6f1d7a75b91d3",
+      "outputSize": 524072
+    }
+  ]
+}

@@ -1,0 +1,13 @@
+line	project	path	exists	gate_kind	gate_cmd	tier	refs_ok	refs_missing	missing	nonlocal	shorthand
+51	NOTRICK	~/Projects/notrick	yes	COMMAND	sha256sum -c <(grep -E "^[0-9a-f]{64}" INTEGRITY.md)	1	15	0	-	-	-
+52	Colony Kernel	~/Projects/colony-kernel	yes	COMMAND	npm run verify	1	3	0	-	-	-
+53	DSH	~/Projects/deepseek-harness	yes	COMMAND	pnpm run doc-sync	2	4	0	-	-	-
+54	Hermes Agent	~/.hermes/hermes-agent	yes	EXTERNAL	-	-	0	0	-	NousResearch/hermes-agent	-
+55	crew-research-council	~/crew-research-council	yes	NONE	-	-	1	0	-	-	-
+56	Anatomy Lab	~/anatomy-lab	yes	PROSE	-	-	5	0	-	-	-
+57	dyno-pony	~/Projects/dyno-pony	yes	COMMAND	node --test tests/*.test.cjs	1	1	0	-	-	collect.sh[->scripts/collect.sh]
+58	knowledge-factory	~/Projects/knowledge-factory	yes	NONE	-	-	1	0	-	-	-
+59	`.dsh/`, `.openclaw/`, `~/.claude`, `~/.agents` runtime	.dsh/	yes	NONE	-	-	0	0	-	-	-
+59	`.dsh/`, `.openclaw/`, `~/.claude`, `~/.agents` runtime	.openclaw/	yes	NONE	-	-	0	0	-	-	-
+59	`.dsh/`, `.openclaw/`, `~/.claude`, `~/.agents` runtime	~/.claude	NO	NONE	-	-	0	0	-	-	-
+59	`.dsh/`, `.openclaw/`, `~/.claude`, `~/.agents` runtime	~/.agents	yes	NONE	-	-	0	0	-	-	-

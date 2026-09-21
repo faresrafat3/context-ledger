@@ -1,0 +1,54 @@
+# context surface — the declared documents that carry agent context, one row each.
+# path <TAB> ceiling_words <TAB> zone        (`-` = report-only)
+#
+# zones
+#   edit             a compression pass may land here (the project's §2 safe write-path)
+#   law              Owner-ratified text; only the Owner edits it
+#   protected        §2 evidence / hash-pinned; never edited in place
+#   cite-sensitive   its line numbers are cited elsewhere (citecheck must follow a change)
+#   project-gated    the project's own doc gate owns this ceiling (DSH verify-doc-budgets)
+#   declaration      the authoritative PROTECTED.md itself
+#
+# ceiling policy (declared, then corrected twice by measurement on 2026-09-21)
+#   1. First declaration set every edit-zone ceiling to a policy target 20% below baseline.
+#      Measured wrong: three of the five documents compressed had no duplicate home left to
+#      remove, so the target demanded deleting content — §3.4 forbids that.
+#   2. Ceilings are therefore derived from the ACHIEVED count: achieved_words x 1.05, rounded
+#      up to the nearest 10 (the DSH headroom convention). A ceiling ratchets DOWN only;
+#      raising one requires a written justification in the change.
+#   3. CONCURRENT WRITER (2026-09-21 07:04-07:05). Another session rewrote colony-kernel,
+#      dyno-pony, crew-research-council and knowledge-factory entry documents in one batch,
+#      committed colony-kernel and dyno-pony, and removed crew-research-council/PROTECTED.md
+#      (untracked, and in no git history). The revisions this session measured for those four
+#      projects no longer exist, so their ceilings are re-derived from the 07:05 disk state.
+#      This session did NOT re-apply its own superseded edits. See the receipt §10.
+#   Rows still at a policy target are documents with a known duplicate home that no pass has
+#   reached — the gate stays red for them by design, with a numeric finish line.
+#
+# path	ceiling	zone
+CONSTITUTION.md	-	law
+Projects/notrick/AGENTS.md	-	protected
+Projects/notrick/RULES.md	-	protected
+Projects/notrick/INTEGRITY.md	-	protected
+Projects/notrick/ONBOARDING.md	-	protected
+Projects/notrick/FOUNDATIONAL-BRIEF.md	-	protected
+Projects/notrick/CONTEXT.md	-	protected
+Projects/notrick/README.md	-	cite-sensitive
+Projects/colony-kernel/AGENTS.md	810	edit
+Projects/colony-kernel/README.md	630	edit
+Projects/colony-kernel/GOVERNANCE.md	-	law
+Projects/deepseek-harness/AGENTS.md	-	project-gated
+Projects/deepseek-harness/README.md	-	project-gated
+Projects/deepseek-harness/docs/AGENTS.md	-	project-gated
+Projects/deepseek-harness/packages/AGENTS.md	-	project-gated
+Projects/deepseek-harness/packages/README.md	-	project-gated
+Projects/dyno-pony/AGENT-ERGONOMICS.md	1580	edit
+Projects/dyno-pony/README.md	970	edit
+Projects/dyno-pony/PROTECTED.md	-	declaration
+Projects/knowledge-factory/README.md	170	edit
+Projects/knowledge-factory/design.md	5080	edit
+Projects/knowledge-factory/PROTECTED.md	-	declaration
+crew-research-council/README.md	370	edit
+crew-research-council/PROTECTED.md	-	declaration
+anatomy-lab/README.md	210	edit
+anatomy-lab/PROTECTED.md	-	declaration

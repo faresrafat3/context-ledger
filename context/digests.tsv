@@ -1,0 +1,39 @@
+# content digests — recorded state, not law
+# path	sha256	words	blob	commit	bind
+# A document whose bytes differ from its recorded digest is DRIFT. Intentional change is a
+# two-step act: edit the document, COMMIT it, then --record, and say why in the receipt.
+# bind is `committed` (the working tree equals HEAD for that path) or `no-repo` (outside
+# version control, so no commit can hold it — counted and named, never silent).
+# --record REFUSES a changed document that no commit holds: the working tree differs from
+# HEAD, or the document sits outside version control entirely. It keeps the previous row
+# and exits 1, so a change the repository does not hold cannot be blessed by re-recording
+# the surface. A first pin of an out-of-git document is allowed (nothing is overwritten).
+# --record never drops a digest for a file that is gone: it carries the old digest forward,
+# so a deletion cannot be laundered by re-recording the surface without it.
+# recorded: 2026-09-21 07:29
+CONSTITUTION.md	efc0ac1106fb49fdc177ff244b893f737dc24d4774600d3b191d85003987e4cb	1297	-	-	no-repo
+Projects/notrick/AGENTS.md	498833c6625c224c27fc227807c6bb55ea09f7933f0de086c99b6aeebe1106e6	806	-	-	-
+Projects/notrick/RULES.md	69184cdcbfc7e9a687f893087b704329404732a0458bbc42c6f388dc294816a4	838	da4e85f12c1ea96975c8bdf7593e8eda41b86ddf	abdb2ae3938ecb93cfc0df909704db7c00afb4d0	committed
+Projects/notrick/INTEGRITY.md	6e5d7e232fd0f5579a788c03e1155649221c0e1716f248187c3e1193a51b5cae	773	e3543e01dd62903e37f3d91932273e3d0b3e9de5	abdb2ae3938ecb93cfc0df909704db7c00afb4d0	committed
+Projects/notrick/ONBOARDING.md	400515658651e209567b74c0d0d853ba57c6d54ad33a436ecfc922f229b9a0b1	602	fcb88242664985b8b9c7c81d065e8ede05cfd9bf	abdb2ae3938ecb93cfc0df909704db7c00afb4d0	committed
+Projects/notrick/FOUNDATIONAL-BRIEF.md	6ccab52206ee89a646c2d05b9f343b271fb7ab5fbfc84d2ca1b0553e5e25db42	581	834c4f8a9b062a3ba9a3917ea20d12a92bede2ea	abdb2ae3938ecb93cfc0df909704db7c00afb4d0	committed
+Projects/notrick/CONTEXT.md	a954b21693a15bcebfb1871f7c2e47639057cf1fc7009f1cb7c0207c44a15dc9	10512	a679a61da6454fbf18b19ce7cd26b68c72d405a7	abdb2ae3938ecb93cfc0df909704db7c00afb4d0	committed
+Projects/notrick/README.md	518b346c66f35e72a86a04ad38208eb150f5f9b5da0fc1c6d90acc712f662de4	953	-	-	-
+Projects/colony-kernel/AGENTS.md	7830e18b9603cdd27f8cc1765a0d2c2adcbfd70836302287d1f96d4f14124f82	762	-	-	-
+Projects/colony-kernel/README.md	f9f330cbdb0b74fb2fc2321e2bb61c443519c6281eeb9914a8a62a83d441c223	591	-	-	-
+Projects/colony-kernel/GOVERNANCE.md	9dabcc2b6987fbba774aea8371a49957f4861b7beb6b738522aa0d83ff8ff650	363	5a3579260762dadf535e83f406de9b5bae4b0e37	7b49a649929531152bb3a645d36168f3b95163b0	committed
+Projects/deepseek-harness/AGENTS.md	bbe0098b280198e53ed63283a97237f07c388f00559ac0a3a64d81e76300665b	1949	a479e766253d93676ddc8b67d0199cd4e5729e65	e32dad24470ba6c333a4df1b19dc8e24b1960fe6	committed
+Projects/deepseek-harness/README.md	a51ca4bff273518c3f292b2e6800f5f2de76170ae6f5919fc48e4a0d82b0da1e	238	9f89db3d4502dea4a0d181799164f304d4976740	e32dad24470ba6c333a4df1b19dc8e24b1960fe6	committed
+Projects/deepseek-harness/docs/AGENTS.md	4113f534c321dad461475d8ddddc8cfebe57f669f9d9e894d92972f67dda91c4	1317	bb248a90421c62c8c44eb051852c07ac15131811	e32dad24470ba6c333a4df1b19dc8e24b1960fe6	committed
+Projects/deepseek-harness/packages/AGENTS.md	963fb95f390bc420e4fa70d5e016ed1fbff629214fb2c5143b95e4b747401e86	717	f0c49d55e5965a0e4b02ef7d5f0e2f05a1c36daa	e32dad24470ba6c333a4df1b19dc8e24b1960fe6	committed
+Projects/deepseek-harness/packages/README.md	eda915e0ecd6855e0dadbbdb25148a9a04ec83ab5ccd4bf8754f97d633a44b79	911	9c298d3f2426bab92a6d602495d836ef8ee9fb44	e32dad24470ba6c333a4df1b19dc8e24b1960fe6	committed
+Projects/dyno-pony/AGENT-ERGONOMICS.md	da838837f9de2463801efcbfddd11e5aee12a3140583f5227da45aa628785a58	1498	aed81bcfc5774c60e0cbea21ce38698e154296a5	e48e908849a2c313eec4edb6d8503bf9a57995a2	committed
+Projects/dyno-pony/README.md	3f00c5a02339be49c1ca353bb90f9e3a2aace97d8b26e7e009b80114e24500bc	918	-	-	-
+Projects/dyno-pony/PROTECTED.md	cd8aac6b411547d59eaf359fb44b09fd7041def1d63e37d80d1f4ecda8df5778	737	-	-	-
+Projects/knowledge-factory/README.md	80dc2f871931d3ded72b0cd31e86c12cd06b3912efbd7ad9aaed27ed565fb74e	160	-	-	-
+Projects/knowledge-factory/design.md	86f00db163ce7ee0deb512c61c180bba157757726426a6ce82489001d68e34ef	6369	82e430427f25a6b952a69b897705d7fb29a95bed	55948a3c896e34eb5604c0f37884af1d51b34485	committed
+Projects/knowledge-factory/PROTECTED.md	2f0e7573bb6e012e116e66ea671135399184117e27dd9c1412c83ce8fd83ba05	228	-	-	-
+crew-research-council/README.md	c1b2fdb872e89d8ff5880ee304ae7926120cd0e77dada45b1d8cec2b37475129	344	-	-	-
+crew-research-council/PROTECTED.md	f17a238d8c842c7e8454f3de3f5504b47e99c3e845c8e2dc803699f2dd4075a0	423	-	-	-
+anatomy-lab/README.md	f7b6d68d80fd2506ee2375e817f99025dd9bf2021faaafc9a527b120ebc303cf	200	-	-	no-repo
+anatomy-lab/PROTECTED.md	99b4cec7621818caa901847f4194b5e83098a39d8517f6309efb75aa453e1e0b	393	-	-	no-repo

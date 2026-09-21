@@ -1,0 +1,66 @@
+class	path	line	detail
+CAPS	anatomy-lab/PROTECTED.md	0	1 all-caps token(s) in prose
+CAPS	anatomy-lab/README.md	0	50 all-caps token(s) in prose
+CAPS	CONSTITUTION.md	0	5 all-caps token(s) in prose
+CAPS	crew-research-council/PROTECTED.md	0	1 all-caps token(s) in prose
+CAPS	crew-research-council/README.md	0	34 all-caps token(s) in prose
+CAPS	Projects/colony-kernel/AGENTS.md	0	18 all-caps token(s) in prose
+CAPS	Projects/colony-kernel/GOVERNANCE.md	0	2 all-caps token(s) in prose
+CAPS	Projects/colony-kernel/README.md	0	6 all-caps token(s) in prose
+CAPS	Projects/deepseek-harness/AGENTS.md	0	17 all-caps token(s) in prose
+CAPS	Projects/deepseek-harness/docs/AGENTS.md	0	13 all-caps token(s) in prose
+CAPS	Projects/deepseek-harness/packages/AGENTS.md	0	3 all-caps token(s) in prose
+CAPS	Projects/deepseek-harness/packages/README.md	0	13 all-caps token(s) in prose
+CAPS	Projects/deepseek-harness/README.md	0	5 all-caps token(s) in prose
+CAPS	Projects/dyno-pony/AGENT-ERGONOMICS.md	0	23 all-caps token(s) in prose
+CAPS	Projects/dyno-pony/PROTECTED.md	0	14 all-caps token(s) in prose
+CAPS	Projects/dyno-pony/README.md	0	6 all-caps token(s) in prose
+CAPS	Projects/knowledge-factory/design.md	0	37 all-caps token(s) in prose
+CAPS	Projects/knowledge-factory/PROTECTED.md	0	1 all-caps token(s) in prose
+CAPS	Projects/knowledge-factory/README.md	0	1 all-caps token(s) in prose
+CAPS	Projects/notrick/AGENTS.md	0	22 all-caps token(s) in prose
+CAPS	Projects/notrick/CONTEXT.md	0	1362 all-caps token(s) in prose
+CAPS	Projects/notrick/FOUNDATIONAL-BRIEF.md	0	31 all-caps token(s) in prose
+CAPS	Projects/notrick/INTEGRITY.md	0	10 all-caps token(s) in prose
+CAPS	Projects/notrick/ONBOARDING.md	0	23 all-caps token(s) in prose
+CAPS	Projects/notrick/README.md	0	32 all-caps token(s) in prose
+CAPS	Projects/notrick/RULES.md	0	19 all-caps token(s) in prose
+DUP-HEADING	Projects/dyno-pony/PROTECTED.md:29 Projects/knowledge-factory/PROTECTED.md:13 crew-research-council/PROTECTED.md:28 anatomy-lab/PROTECTED.md:21	0	duplicate home: "safe write path"
+DUP-HEADING	Projects/dyno-pony/PROTECTED.md:33 crew-research-council/PROTECTED.md:32 anatomy-lab/PROTECTED.md:25	0	duplicate home: "local laws that bind any edit here"
+DUP-HEADING	Projects/dyno-pony/PROTECTED.md:51 Projects/knowledge-factory/PROTECTED.md:19 crew-research-council/PROTECTED.md:39 anatomy-lab/PROTECTED.md:31	0	duplicate home: "if you believe a protected file must change"
+DUP-HEADING	Projects/dyno-pony/PROTECTED.md:5 Projects/knowledge-factory/PROTECTED.md:4 crew-research-council/PROTECTED.md:16 anatomy-lab/PROTECTED.md:5	0	duplicate home: "protected do not edit in place"
+DUP-HEADING	Projects/notrick/FOUNDATIONAL-BRIEF.md:12 Projects/knowledge-factory/README.md:4	0	duplicate home: "what this is"
+HISTORY	Projects/deepseek-harness/docs/AGENTS.md	38	- **Document current state, not change history.** Avoid "previously/now/no longer", PRs, commits, and stack po
+HISTORY	Projects/deepseek-harness/docs/AGENTS.md	64	- Narrated history or war stories: "previously", "now", "no longer", "used to", "renamed", "was moved", PRs, o
+HISTORY	Projects/deepseek-harness/docs/AGENTS.md	67	- Reasoning transcripts: step-by-step implementation narration, proof of obvious branches, test walkthroughs, 
+HISTORY	Projects/knowledge-factory/design.md	117	The "hierarchical memory" the home `AGENTS.md` describes (per-agent / per-group / per-company / global) is not
+HISTORY	Projects/knowledge-factory/design.md	254	- **Default team tooling is one-shot fork/spawn** — `agent-team-profile` sets fresh and fork to `one-shot`, so
+HISTORY	Projects/knowledge-factory/design.md	440	DSH already covers the substrate the founder needs to build a multi-agent research pipeline, with three honest
+HISTORY	Projects/notrick/CONTEXT.md	100	- 2026-09-06 — RETRO-LOGGED approved-docs moment #2 (same 20:0x parallel session, continuing live; P15 Branch 
+HISTORY	Projects/notrick/CONTEXT.md	194	  Part 6 NOT YET (restates the indefinite-hold pace ruling; the personal written GO stays
+HISTORY	Projects/notrick/CONTEXT.md	200	  1, 3, 4 remain open (signature, smoke, threshold) · box 7 open by design (NOT YET).
+HISTORY	Projects/notrick/CONTEXT.md	209	  charters remain budget-gated by the zero-day pre-flight; hold unchanged (Part 6 NOT YET
+HISTORY	Projects/notrick/CONTEXT.md	262	  P6 NOT YET. Pre-flight: boxes 1,2,5,6 ✅ · box 3 (smoke) ❌ confirmed by HOLD · box 4
+HISTORY	Projects/notrick/CONTEXT.md	528	  (previously left untouched only because the tree was hot): both verdict-master.md:29
+HISTORY	Projects/notrick/CONTEXT.md	704	- 2026-09-11 · ERGONOMICS-DEEP PASS (Owner live directive in-session, verbatim: "OK, now I want you to think d
+HISTORY	Projects/notrick/CONTEXT.md	705	- 2026-09-19 · OWNER-RULING-SESSION PREP (Owner click-delegation standing order: rule the pending stack today,
+HISTORY	Projects/notrick/README.md	10	- Zero day opens with Owner-only acts **P3 threshold · P5 fuel · P6 written GO** (RATIFICATION-BATCH-001.md 3/
+PREAMBLE	CONSTITUTION.md	3	8-line preamble (the doctrine allows two)
+PREAMBLE	crew-research-council/PROTECTED.md	3	12-line preamble (the doctrine allows two)
+PREAMBLE	Projects/notrick/CONTEXT.md	6	13-line preamble (the doctrine allows two)
+STATUS	Projects/deepseek-harness/AGENTS.md	134	- TODO markers: `FIXME`/`TODO`/`XXX` by urgency ([semantics](docs/development.md)).
+STATUS	Projects/deepseek-harness/AGENTS.md	34	  todo/        todo_write tool
+STATUS	Projects/deepseek-harness/packages/AGENTS.md	28	- Package READMEs put durable consumer gaps and non-obvious maintainer constraints under `## Known Limitations
+STATUS	Projects/deepseek-harness/packages/README.md	58	| [`todo/`](todo/README.md) | The model-facing `todo_write` tool |
+STATUS	Projects/knowledge-factory/design.md	121	- `dsh-tool-todo` (`packages/todo/tool-todo/README.md`) — `todo_write` tool. Whole-list replacement; `allowPar
+STATUS	Projects/knowledge-factory/design.md	14	- `packages/todo/tool-todo/` — `todo_write` tool
+STATUS	Projects/knowledge-factory/design.md	172	- **Two planes are visible in the file**: persona + agent-instructions (prompt-plane), `tool-bash`/`tool-fs`/`
+STATUS	Projects/knowledge-factory/design.md	375	- id: tool-todo
+STATUS	Projects/knowledge-factory/design.md	376	  name: '@deepseek-ai/dsh-tool-todo'
+STATUS	Projects/knowledge-factory/design.md	81	| `standard` | Full coding agent with persona shadowing the deployment default | All tools: `tool-bash`, `tool
+WALL	Projects/deepseek-harness/AGENTS.md	145	139 words on one physical line
+WALL	Projects/notrick/CONTEXT.md	659	218 words on one physical line
+WALL	Projects/notrick/CONTEXT.md	704	870 words on one physical line
+WALL	Projects/notrick/CONTEXT.md	705	325 words on one physical line
+WALL	Projects/notrick/CONTEXT.md	706	436 words on one physical line
+WALL	Projects/notrick/CONTEXT.md	99	159 words on one physical line

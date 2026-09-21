@@ -1,0 +1,15 @@
+# What this repository holds: the workspace's governance records — the audit tools, the declared
+# context surface, the digests bound to commits, the findings, the receipts, the migrations.
+# Records are text, they are small, and they are the thing a hand edit must leave a trace in.
+#
+# What it deliberately does not hold, and why:
+
+# An unpacked desktop application (446 MB of .pak, .node, .so and node_modules). It is a vendor
+# payload, reproducible from its installer, authored by nobody here. Committing it would put a
+# binary blob in the object store and bury every record underneath it.
+opencode-desktop/
+
+# Point-in-time snapshots of another system's state — one 53 MB tarball plus its manifest. A backup
+# is an artifact, not a record: it is regenerated, and the manifest already names what it came from.
+# The audit's own reports beside it (dsh-audit/*.md, *.mjs, *.json) ARE records and are tracked.
+dsh-audit/backups/
