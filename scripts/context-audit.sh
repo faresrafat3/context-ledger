@@ -51,8 +51,9 @@
 #   context-audit.sh --slop          only the slop findings, with file:line
 #   context-audit.sh --write         write REGISTRY.md + registry.tsv + slop.tsv to $OUT
 #   context-audit.sh --check         exit 1 on a missing declared file, an edit-zone document over
-#                                    its ceiling, a digest failure (DRIFT / NEW / GONE), a broken
-#                                    commit binding (BIND-FAIL / NO-COMMIT), or an uncommitted ledger
+#                                    its ceiling, a digest failure (DRIFT / NEW / GONE — GONE is
+#                                    probed for recoverable bytes first), a broken commit binding
+#                                    (BIND-FAIL / NO-COMMIT), or an uncommitted ledger
 #   context-audit.sh --strict        --check plus hard slop (walls, duplicate homes)
 #   context-audit.sh --discover      context-looking docs on disk that no row declares
 #   context-audit.sh --density       numbers / citations / falsifiers per 100 words, per doc
@@ -62,7 +63,9 @@
 #                                    CHANGED document that no commit holds, whether the working tree is
 #                                    uncommitted or the document sits outside version control: commit
 #                                    the edit (or put it under version control) and then record it
-#   context-audit.sh --digests       digest and binding per document (ok/DRIFT/NEW/GONE · ok/no-repo/NO-COMMIT/FAIL)
+#   context-audit.sh --digests       digest and binding per document (ok/DRIFT/NEW/GONE · ok/no-repo/NO-COMMIT/FAIL);
+#                                    a GONE row's ON-DISK column names where the bytes survive
+#                                    (commit/index/stash/reflog/history/unreachable/no-trace)
 #   context-audit.sh --self-test     plant known lies in a fixture and prove they are caught
 #   context-audit.sh --help
 #
@@ -391,7 +394,8 @@ discover(){
 #   ok     recorded == on disk
 #   DRIFT  bytes changed since the last recording
 #   NEW    declared but never recorded
-#   GONE   recorded but absent from disk — a deletion
+#   GONE   recorded but absent from disk — a deletion, reported only after the recovery probe has
+#          checked where the bytes still survive (see THE RECOVERY PROBE below)
 # `--record` NEVER drops a digest for a file that is gone; it carries the old digest forward, so a
 # deletion cannot be laundered by re-recording the surface without it.
 #
@@ -464,6 +468,117 @@ bind_of(){
   commit=$(git -C "$repo" rev-parse HEAD 2>/dev/null || true)
   blob=$(git -C "$repo" rev-parse "HEAD:$rel" 2>/dev/null || true)
   printf 'ok\t%s\t%s\tcommitted' "${blob:--}" "${commit:--}"
+}
+
+# ── THE RECOVERY PROBE ─────────────────────────────────────────────────────────
+# GONE is a claim about ONE snapshot (the working tree), not about the world. Before the audit
+# reports a document as gone it must ask where else the recorded bytes might live, because the
+# answer changes the remedy: a recoverable loss is an accident waiting to be undone, an
+# unrecoverable one is an Owner ruling. The probe is READ-ONLY — it never writes an object, never
+# creates a ref, never touches a stash — and every git call fails silently, because a probe that
+# cannot run must not invent a false hope either.
+#
+#   1. recorded commit   `git rev-parse <commit>:<path>` — if the row's own commit still holds
+#                        the path, the loss is one checkout away.
+#   2. the index         `git ls-files -s` — an unstaged deletion leaves the bytes in the index,
+#                        one `git checkout -- <path>` away.
+#   3. any stash         `git stash list`, then `git cat-file -e <stash>:<path>` per entry — the
+#                        stash's own tree first, then its base parent — because a stashed deletion
+#                        is the second most common way bytes vanish from a tree.
+#   4. the HEAD reflog  — by object id, not by path: a bound row carries the git blob id of the
+#                        recorded bytes; a legacy (pre-binding) row has none, so candidates are
+#                        matched by CONTENT — the sha256 of each candidate's bytes must equal the
+#                        recorded digest. Deleted content survives until gc.
+#   5. reachable history — `git log --all -- <path>`: a commit the row does not name (a restore,
+#                        an ancestor, another branch) may still hold the exact bytes. gc can
+#                        never erase these, so a history verdict is stable.
+#   6. unreachable      — `git fsck --unreachable`, same matching: a dangling blob, gone at the
+#                        next gc.
+#
+# Honest ceiling: probes 4–6 stop at the gc horizon. Once gc has pruned, a loss with no commit,
+# index, or reachable history behind it IS unrecoverable, and the probe must say so (no-trace),
+# not guess.
+
+# one line of evidence: <where>TAB<detail>. Empty when nothing recoverable is found. Memoized per
+# (path, recorded digest): the answer cannot change inside one run.
+declare -A RECOVERY_CACHE=()
+recovery_probe(){
+  local f="$1" rsha="$2" abs repo rel ev key gsha bsha loc sid at
+  local TAB=$'\t'
+  abs=$(abs_of "$f")
+  if [ -f "$abs" ]; then printf ''; return 0; fi
+  key="$f|$rsha"
+  if [ -n "${RECOVERY_CACHE[$key]+set}" ]; then printf '%s' "${RECOVERY_CACHE[$key]}"; return 0; fi
+  [ "$GIT_OK" = 1 ] && [ -n "$rsha" ] || { RECOVERY_CACHE["$key"]=''; return 0; }
+  repo=$(repo_of "$f")
+  [ -n "$repo" ] || { RECOVERY_CACHE["$key"]=''; return 0; }
+  rel="${abs#"$repo"/}"
+  ev=''
+  # 1. the recorded commit's own tree
+  gsha=$(git -C "$repo" rev-parse "${RCOMMIT[$f]:--}:$rel" 2>/dev/null || true)
+  if [ -n "$gsha" ] && git -C "$repo" cat-file -e "$gsha" 2>/dev/null; then
+    ev="commit${TAB}git checkout ${RCOMMIT[$f]:0:12} -- $rel restores the recorded bytes (blob $gsha)"
+  fi
+  # 2. the index — a deletion leaves the bytes staged until the deletion itself is staged
+  if [ -z "$ev" ]; then
+    gsha=$(git -C "$repo" ls-files -s -- "$rel" 2>/dev/null | awk 'NR==1{print $2}')
+    if [ -n "$gsha" ] && git -C "$repo" cat-file -e "$gsha" 2>/dev/null; then
+      ev="index${TAB}the recorded bytes are still staged — git checkout -- $rel restores them (blob $gsha)"
+    fi
+  fi
+  # 3. any stash — the stash's worktree tree first, then its base parent
+  if [ -z "$ev" ]; then
+    sid=$(git -C "$repo" stash list 2>/dev/null | while IFS= read -r line; do
+            s=${line%%:*}
+            for at in "$s" "$s^1"; do
+              git -C "$repo" cat-file -e "${at}:$rel" 2>/dev/null && { printf '%s\n' "$at"; break 2; }
+            done
+          done)
+    if [ -n "$sid" ]; then
+      ev="stash${TAB}deleted content exists in ${sid} — git checkout ${sid} -- $rel restores it"
+    fi
+  fi
+  # 4. reflog + unreachable, by object id: the recorded sha256 is a content handle whose git blob
+  # id the row carries, so the object database can be asked for those exact bytes.
+  if [ -z "$ev" ]; then
+    bsha=$(awk -F'\t' -v want="$rsha" '$2==want && $5 ~ /^[0-9a-f]{40}$/ {print $5; exit}' "$DIGESTS" 2>/dev/null)
+    if [ -z "$bsha" ]; then
+      # legacy (pre-binding) row: no git blob id is known, so candidates are matched by CONTENT —
+      # the sha256 of the candidate's bytes must equal the recorded digest
+      match_blob(){ git -C "$repo" cat-file blob "$1" 2>/dev/null | sha256sum | cut -d' ' -f1 | grep -qx "$rsha"; }
+    elif git -C "$repo" cat-file -e "$bsha" 2>/dev/null; then
+      # bound row: the recorded git blob id IS the handle
+      match_blob(){ [ "$1" = "$bsha" ]; }
+    fi
+    if [ "$(declare -F match_blob)" ]; then
+      loc=$(git -C "$repo" reflog --format='%H' HEAD 2>/dev/null | while IFS= read -r c; do
+              g=$(git -C "$repo" rev-parse -q --verify "${c}:$rel" 2>/dev/null || true)
+              [ -n "$g" ] && match_blob "$g" && { git -C "$repo" describe --always "$c" 2>/dev/null; break; }
+            done)
+      if [ -n "$loc" ]; then
+        ev="reflog${TAB}the recorded bytes survive as blob ${bsha:-<content-matched>} at ${loc} in the HEAD reflog history — git cat-file blob <sha> > $rel restores them"
+      else
+        # reachable history: a commit that still holds the path at the recorded bytes, even one
+        # the recorded row does not name (a restore, an ancestor, another branch)
+        loc=$(git -C "$repo" log --all --format='%H' -- "$rel" 2>/dev/null | while IFS= read -r c; do
+                g=$(git -C "$repo" rev-parse -q --verify "${c}:$rel" 2>/dev/null || true)
+                [ -n "$g" ] && match_blob "$g" && { git -C "$repo" describe --always "$c" 2>/dev/null; break; }
+              done)
+        if [ -n "$loc" ]; then
+          ev="history${TAB}the recorded bytes survive at ${loc} in reachable history — git checkout ${loc} -- $rel restores them"
+        else
+          ub=$(git -C "$repo" fsck --unreachable 2>/dev/null | awk '$2=="blob"{print $3}' | while IFS= read -r u; do
+                 match_blob "$u" && { printf '%s\n' "$u"; break; }
+               done)
+          if [ -n "$ub" ]; then
+            ev="unreachable${TAB}the recorded bytes survive as UNREACHABLE blob $ub — gc will erase them; git cat-file blob $ub > $rel restores them"
+          fi
+        fi
+      fi
+    fi
+  fi
+  RECOVERY_CACHE["$key"]="$ev"
+  printf '%s' "$ev"
 }
 
 # ok | unbound | unbound-repo | no-git | bind-fail:<reason>
@@ -620,7 +735,7 @@ digest_status(){
 
 build_digest_findings(){
   DIG_FINDINGS=""; DIG_FAILS=0; DIG_UNBOUND=0
-  local r f st bres fails=0 unbound=0
+  local r f st bres ev fails=0 unbound=0
   if [ "$DIG_LOADED" != 1 ]; then
     DIG_FINDINGS="FAIL  [digest] the surface is not pinned: ${DIGESTS#$HOME_DIR/} is absent — run --record"$'\n'
     DIG_FAILS=1
@@ -638,7 +753,15 @@ build_digest_findings(){
       ok) ;;
       DRIFT) DIG_FINDINGS="${DIG_FINDINGS}FAIL  [digest] ${f}: bytes changed since the last recording — re-record if intended, and record why"$'\n'; fails=$((fails+1)) ;;
       NEW)   DIG_FINDINGS="${DIG_FINDINGS}FAIL  [digest] ${f}: declared but never recorded — run --record"$'\n'; fails=$((fails+1)) ;;
-      GONE)  DIG_FINDINGS="${DIG_FINDINGS}FAIL  [digest] ${f}: recorded but absent from disk — a deletion is an Owner ruling, not a re-record"$'\n'; fails=$((fails+1)) ;;
+      GONE)  ev=$(recovery_probe "$f" "${REC[$f]:-}" | head -n 1)
+             case "${ev%%$'\t'*}" in
+               commit|index|stash|reflog|history|unreachable)
+                 fails=$((fails+1))
+                 DIG_FINDINGS="${DIG_FINDINGS}FAIL  [digest] ${f}: absent from disk — a deletion is an Owner ruling, not a re-record — but the recorded bytes are RECOVERABLE: ${ev#*$'\t'}"$'\n' ;;
+               *)
+                 fails=$((fails+1))
+                 DIG_FINDINGS="${DIG_FINDINGS}FAIL  [digest] ${f}: recorded but absent from disk, and no recovery probe found the bytes (recorded commit, index, stash, reflog, unreachable objects) — a deletion is an Owner ruling, not a re-record"$'\n' ;;
+             esac ;;
     esac
     # the commit binding. A row that never existed has nothing to verify (NEW already fired).
     [ -n "${REC[$f]:-}" ] || continue
@@ -659,8 +782,8 @@ build_digest_findings(){
 }
 
 digests_view(){
-  local r f abs st rs as bs cs w
-  printf '%-42s %-7s %-9s %8s %10s %10s %6s %s\n' DOCUMENT DIGEST BIND COMMIT RECORDED ON-DISK WORDS ZONE
+  local r f abs st rs as bs cs w ev
+  printf '%-42s %-7s %-9s %8s %10s %14s %6s %s\n' DOCUMENT DIGEST BIND COMMIT RECORDED ON-DISK WORDS ZONE
   while IFS= read -r r; do
     [ -n "$r" ] || continue
     f=$(printf '%s' "$r" | fld 1)
@@ -668,10 +791,18 @@ digests_view(){
     abs=$(abs_of "$f")
     st=$(digest_status "$f")
     if [ -f "$abs" ]; then as=$(sha_of "$abs"); else as='-'; fi
-    rs="${REC[$f]:--}"; rs="${rs:0:8}"; as="${as:0:8}"
+    if [ "$st" = GONE ]; then
+      ev=$(recovery_probe "$f" "${REC[$f]:-}" | head -n 1)
+      case "${ev%%$'\t'*}" in
+        commit|index|stash|reflog|history|unreachable) as="gone·${ev%%$'\t'*}" ;;
+        *)                                     as='gone·no-trace' ;;
+      esac
+    fi
+    rs="${REC[$f]:--}"; rs="${rs:0:8}"
+    case "$as" in gone·*) ;; *) as="${as:0:8}" ;; esac
     cs="${RCOMMIT[$f]:--}"; [ "$cs" = '-' ] || cs="${cs:0:8}"
     bs=$(bind_label "$f" "$st")
-    printf '%-42s %-7s %-9s %8s %10s %10s %6s %s\n' "$f" "$st" "$bs" "$cs" "$rs" "$as" "$w" \
+    printf '%-42s %-7s %-9s %8s %10s %14s %6s %s\n' "$f" "$st" "$bs" "$cs" "$rs" "$as" "$w" \
       "$(printf '%s' "$r" | fld 8)"
   done <<< "$ROWS"
 }
@@ -885,63 +1016,100 @@ self_test(){
         bash "$0" --digests 2>/dev/null | grep -c 'GONE' || true)
   [ "$got" -ge 1 ] || { printf 'SELF-TEST: FAIL — a deletion was laundered by re-recording the surface\n'; fails=$((fails+1)); }
 
-  # a CHANGED document outside version control is refused too: with no commit there is no way to
-  # tell an intended edit from a silent rewrite, so the recording must not follow the bytes
-  row_before=$(grep '^fixture/proj/AGENTS\.md' "$tmp/digests.tsv" || true)
-  CEILINGS="$tmp/ceilings.tsv" DIGESTS="$tmp/digests.tsv" HOME_DIR="$tmp" CONSTITUTION="$real_const" \
-    bash "$0" --record >/dev/null 2>&1 && { printf 'SELF-TEST: FAIL — --record blessed a change that no repository holds\n'; fails=$((fails+1)); }
-  row_after=$(grep '^fixture/proj/AGENTS\.md' "$tmp/digests.tsv" || true)
-  [ "$row_before" = "$row_after" ] || { printf 'SELF-TEST: FAIL — a refused out-of-git document had its recording rewritten\n'; fails=$((fails+1)); }
-  got=$(CEILINGS="$tmp/ceilings.tsv" DIGESTS="$tmp/digests.tsv" HOME_DIR="$tmp" CONSTITUTION="$real_const" \
-        bash "$0" --digests 2>/dev/null | awk '$1=="fixture/proj/AGENTS.md"{print $2}' || true)
-  [ "$got" = DRIFT ] || { printf 'SELF-TEST: FAIL — a refused out-of-git change is not still DRIFT (got %s)\n' "$got"; fails=$((fails+1)); }
+  # ── the recovery probe: a GONE verdict is reported only after the escape routes are checked ──
+  git init -q "$tmp/rec" >/dev/null 2>&1 || true
+  mkdir -p "$tmp/rec/proj"
+  printf 'proj/AGENTS.md\t1000\tedit\n' > "$tmp/rec/ceilings.tsv"
+  printf '# Recovery fixture\n\nOperations must never rename the archive directory in place.\n' \
+    > "$tmp/rec/proj/AGENTS.md"
+  git -C "$tmp/rec" -c user.name=fixture -c user.email=fixture@invalid add -A >/dev/null 2>&1 || true
+  git -C "$tmp/rec" -c user.name=fixture -c user.email=fixture@invalid commit -q -m 'fixture: recovery base' >/dev/null 2>&1 || true
+  recrun(){ CEILINGS="$tmp/rec/ceilings.tsv" DIGESTS="$tmp/rec/digests.tsv" HOME_DIR="$tmp/rec" \
+            CONSTITUTION="$real_const" bash "$0" "$@" ; }
+  recrun --record >/dev/null 2>&1 || { printf 'SELF-TEST: FAIL — --record failed on the recovery fixture\n'; fails=$((fails+1)); }
 
-  # a document outside version control is NAMED, not failed: it has no commit to bind to, so the
-  # honest verdict is a warning, never a silent pass and never a false failure
-  got=$(CEILINGS="$tmp/ceilings.tsv" DIGESTS="$tmp/digests.tsv" HOME_DIR="$tmp" CONSTITUTION="$real_const" \
-        bash "$0" --check 2>&1 | grep -c '^FAIL  \[bind\]' || true)
-  [ "$got" = 0 ] || { printf 'SELF-TEST: FAIL — a document outside version control was failed as a binding change\n'; fails=$((fails+1)); }
+  # a committed deletion: the recorded commit still holds the bytes, so the finding names the way out
+  rm "$tmp/rec/proj/AGENTS.md"
+  git -C "$tmp/rec" -c user.name=fixture -c user.email=fixture@invalid add -A >/dev/null 2>&1 || true
+  git -C "$tmp/rec" -c user.name=fixture -c user.email=fixture@invalid commit -q -m 'fixture: deletion committed' >/dev/null 2>&1 || true
+  got=$(recrun --digests 2>/dev/null | awk '$1=="proj/AGENTS.md"{print $6}' || true)
+  [ "$got" = "gone·commit" ] || { printf 'SELF-TEST: FAIL — a committed deletion was not probed as recoverable (got "%s", want "gone·commit")\n' "$got"; fails=$((fails+1)); }
+  chk=$(recrun --check 2>&1 || true)
+  printf '%s' "$chk" | grep -q 'RECOVERABLE' || { printf 'SELF-TEST: FAIL — a committed deletion did not name its recovery path\n'; fails=$((fails+1)); }
 
-  # ── the commit binding: a change no commit holds cannot be blessed ────────────
-  mkdir -p "$tmp/bind/proj"
-  printf 'proj/AGENTS.md\t1000\tedit\n' > "$tmp/bind/ceilings.tsv"
-  git init -q "$tmp/bind" >/dev/null 2>&1 || true
-  printf '# Bound fixture\n\nOperations must never rename the archive directory in place.\n' \
-    > "$tmp/bind/proj/AGENTS.md"
-  git -C "$tmp/bind" -c user.name=fixture -c user.email=fixture@invalid add proj/AGENTS.md >/dev/null 2>&1 || true
-  git -C "$tmp/bind" -c user.name=fixture -c user.email=fixture@invalid commit -q -m 'fixture: bind' >/dev/null 2>&1 || true
-  bindrun(){ CEILINGS="$tmp/bind/ceilings.tsv" DIGESTS="$tmp/bind/digests.tsv" HOME_DIR="$tmp/bind" \
+  # an unstaged deletion over a legacy (pre-binding) row: the index still holds the bytes
+  git -C "$tmp/rec" checkout HEAD^ -- proj/AGENTS.md >/dev/null 2>&1 || true
+  git -C "$tmp/rec" -c user.name=fixture -c user.email=fixture@invalid commit -q -m 'fixture: restore' >/dev/null 2>&1 || true
+  recrun --record >/dev/null 2>&1 || true
+  sha=$(awk -F'\t' '$1=="proj/AGENTS.md"{print $2; exit}' "$tmp/rec/digests.tsv")
+  printf 'proj/AGENTS.md\t%s\t4\n' "$sha" > "$tmp/rec/digests.tsv"   # simulate a pre-binding recording
+  rm "$tmp/rec/proj/AGENTS.md"
+  got=$(recrun --digests 2>/dev/null | awk '$1=="proj/AGENTS.md"{print $6}' || true)
+  [ "$got" = "gone·index" ] || { printf 'SELF-TEST: FAIL — an unstaged deletion did not name the index (got "%s", want "gone·index")\n' "$got"; fails=$((fails+1)); }
+
+  # with the index emptied too, only HEAD's reflog history still holds the bytes
+  git -C "$tmp/rec" rm -q --cached proj/AGENTS.md >/dev/null 2>&1 || true
+  got=$(recrun --digests 2>/dev/null | awk '$1=="proj/AGENTS.md"{print $6}' || true)
+  [ "$got" = "gone·reflog" ] || { printf 'SELF-TEST: FAIL — a deletion reachable only through the HEAD reflog did not name it (got "%s", want "gone·reflog")\n' "$got"; fails=$((fails+1)); }
+
+  # a stashed deletion: the stash is parked while the ledger is clean, because `git stash`
+  # resets tracked files to HEAD — a ledger hazard this tool itself warns about — and only then
+  # is the row reduced to its legacy 3-column form
+  rm -f "$tmp/rec/proj/AGENTS.md"
+  git -C "$tmp/rec" stash -q >/dev/null 2>&1 || true            # park the deletion; the file comes back
+  sha=$(awk -F'\t' '$1=="proj/AGENTS.md"{print $2; exit}' "$tmp/rec/digests.tsv")
+  printf 'proj/AGENTS.md\t%s\t4\n' "$sha" > "$tmp/rec/digests.tsv"   # legacy row, again
+  git -C "$tmp/rec" rm -q --cached proj/AGENTS.md >/dev/null 2>&1 || true
+  git -C "$tmp/rec" -c user.name=fixture -c user.email=fixture@invalid commit -q -m 'fixture: deletion committed' >/dev/null 2>&1 || true
+  rm -f "$tmp/rec/proj/AGENTS.md"   # the commit un-tracked the restored copy
+  got=$(recrun --digests 2>/dev/null | awk '$1=="proj/AGENTS.md"{print $6}' || true)
+  [ "$got" = "gone·stash" ] || { printf 'SELF-TEST: FAIL — a stashed deletion did not name the stash (got "%s", want "gone·stash")\n' "$got"; fails=$((fails+1)); }
+
+  # with the stash cleared, the index empty and reflogs still intact, the HEAD reflog names them
+  git -C "$tmp/rec" stash clear >/dev/null 2>&1 || true
+  got=$(recrun --digests 2>/dev/null | awk '$1=="proj/AGENTS.md"{print $6}' || true)
+  [ "$got" = "gone·reflog" ] || { printf 'SELF-TEST: FAIL — a deletion reachable only through the HEAD reflog did not name it (got "%s", want "gone·reflog")\n' "$got"; fails=$((fails+1)); }
+
+  # reflogs expired, but the bytes sit in reachable history (an ancestor holds the path)
+  git -C "$tmp/rec" reflog expire --expire=now --expire-unreachable=now --all >/dev/null 2>&1 || true
+  got=$(recrun --digests 2>/dev/null | awk '$1=="proj/AGENTS.md"{print $6}' || true)
+  [ "$got" = "gone·history" ] || { printf 'SELF-TEST: FAIL — bytes held by a reachable ancestor were not named history (got "%s", want "gone·history")\n' "$got"; fails=$((fails+1)); }
+
+  # gc cannot fake a loss when reachable history holds the bytes
+  git -C "$tmp/rec" gc --prune=now --quiet >/dev/null 2>&1 || true
+  got=$(recrun --digests 2>/dev/null | awk '$1=="proj/AGENTS.md"{print $6}' || true)
+  [ "$got" = "gone·history" ] || { printf 'SELF-TEST: FAIL — gc changed a reachable-history verdict (got "%s")\n' "$got"; fails=$((fails+1)); }
+
+  # a second fixture where the bytes are TRULY unreachable: the path was added, removed, and the
+  # branch reset below both commits, so no reachable commit and no reflog holds the bytes — only
+  # a dangling object does, until gc prunes it
+  mkdir -p "$tmp/rec2/proj"
+  printf 'proj/AGENTS.md\t1000\tedit\n' > "$tmp/rec2/ceilings.tsv"
+  printf '# Unreachable fixture\n' > "$tmp/rec2/proj/README.md"
+  printf 'digests.tsv\n' > "$tmp/rec2/.gitignore"   # the recording must survive resets in this fixture
+  git init -q "$tmp/rec2" >/dev/null 2>&1 || true
+  git -C "$tmp/rec2" -c user.name=fixture -c user.email=fixture@invalid add -A >/dev/null 2>&1 || true
+  git -C "$tmp/rec2" -c user.name=fixture -c user.email=fixture@invalid commit -q -m 'fixture: base without the path' >/dev/null 2>&1 || true
+  printf '# Recovery fixture\n\nOperations must never rename the archive directory in place.\n' > "$tmp/rec2/proj/AGENTS.md"
+  git -C "$tmp/rec2" -c user.name=fixture -c user.email=fixture@invalid add -A >/dev/null 2>&1 || true
+  git -C "$tmp/rec2" -c user.name=fixture -c user.email=fixture@invalid commit -q -m 'fixture: the path exists' >/dev/null 2>&1 || true
+  rec2run(){ CEILINGS="$tmp/rec2/ceilings.tsv" DIGESTS="$tmp/rec2/digests.tsv" HOME_DIR="$tmp/rec2" \
              CONSTITUTION="$real_const" bash "$0" "$@" ; }
+  rec2run --record >/dev/null 2>&1 || true
+  sha=$(awk -F'\t' '$1=="proj/AGENTS.md"{print $2; exit}' "$tmp/rec2/digests.tsv")
+  printf 'proj/AGENTS.md\t%s\t4\n' "$sha" > "$tmp/rec2/digests.tsv"   # legacy row; the file is untracked here, so resets leave it alone
+  rm "$tmp/rec2/proj/AGENTS.md"
+  git -C "$tmp/rec2" -c user.name=fixture -c user.email=fixture@invalid add -A >/dev/null 2>&1 || true
+  git -C "$tmp/rec2" -c user.name=fixture -c user.email=fixture@invalid commit -q -m 'fixture: the path is removed' >/dev/null 2>&1 || true
+  git -C "$tmp/rec2" reset -q --hard HEAD~2 >/dev/null 2>&1 || true   # below both commits that held the path
+  git -C "$tmp/rec2" reflog expire --expire=now --expire-unreachable=now --all >/dev/null 2>&1 || true
+  got=$(rec2run --digests 2>/dev/null | awk '$1=="proj/AGENTS.md"{print $6}' || true)
+  [ "$got" = "gone·unreachable" ] || { printf 'SELF-TEST: FAIL — a reset-away blob was not named unreachable (got "%s", want "gone·unreachable")\n' "$got"; fails=$((fails+1)); }
 
-  bindrun --record >/dev/null 2>&1 || { printf 'SELF-TEST: FAIL — --record refused a committed document\n'; fails=$((fails+1)); }
-  got=$(bindrun --digests 2>/dev/null | awk '$1=="proj/AGENTS.md"{print $2, $3}' || true)
-  [ "$got" = "ok ok" ] || { printf 'SELF-TEST: FAIL — a committed document was not bound (got \"%s\", want \"ok ok\")\n' "$got"; fails=$((fails+1)); }
-
-  # edit with no commit behind it: --record must refuse, keep the previous row, and stay red
-  printf 'an edit with no commit behind it\n' >> "$tmp/bind/proj/AGENTS.md"
-  row_before=$(grep '^proj/AGENTS\.md' "$tmp/bind/digests.tsv" || true)
-  bindrun --record >/dev/null 2>&1 && { printf 'SELF-TEST: FAIL — --record blessed a change no commit holds\n'; fails=$((fails+1)); }
-  row_after=$(grep '^proj/AGENTS\.md' "$tmp/bind/digests.tsv" || true)
-  [ "$row_before" = "$row_after" ] || { printf 'SELF-TEST: FAIL — a refused document had its recording rewritten anyway\n'; fails=$((fails+1)); }
-  got=$(bindrun --digests 2>/dev/null | awk '$1=="proj/AGENTS.md"{print $2}' || true)
-  [ "$got" = DRIFT ] || { printf 'SELF-TEST: FAIL — the refused change is not still uncommitted at check time (got %s)\n' "$got"; fails=$((fails+1)); }
-
-  # commit it, and the same recording is accepted
-  git -C "$tmp/bind" -c user.name=fixture -c user.email=fixture@invalid add proj/AGENTS.md >/dev/null 2>&1 || true
-  git -C "$tmp/bind" -c user.name=fixture -c user.email=fixture@invalid commit -q -m 'fixture: commit the edit' >/dev/null 2>&1 || true
-  bindrun --record >/dev/null 2>&1 || { printf 'SELF-TEST: FAIL — --record refused a document that is now committed\n'; fails=$((fails+1)); }
-  row_after2=$(grep '^proj/AGENTS\.md' "$tmp/bind/digests.tsv" || true)
-  [ "$row_after2" != "$row_before" ] || { printf 'SELF-TEST: FAIL — the recording did not follow the commit\n'; fails=$((fails+1)); }
-  got=$(bindrun --digests 2>/dev/null | awk '$1=="proj/AGENTS.md"{print $2, $3}' || true)
-  [ "$got" = "ok ok" ] || { printf 'SELF-TEST: FAIL — a re-committed document is not bound (got \"%s\")\n' "$got"; fails=$((fails+1)); }
-
-  # a forged binding: the row is pointed at a commit that does not exist. The digest layer still
-  # says ok — only the binding layer can see this, which is the whole reason it exists.
-  awk -F'\t' 'BEGIN{OFS="\t"} $1=="proj/AGENTS.md"{$5="0000000000000000000000000000000000000000"} {print}' \
-    "$tmp/bind/digests.tsv" > "$tmp/bind/forged" && mv "$tmp/bind/forged" "$tmp/bind/digests.tsv"
-  got=$(bindrun --digests 2>/dev/null | awk '$1=="proj/AGENTS.md"{print $2, $3}' || true)
-  [ "$got" = "ok FAIL" ] || { printf 'SELF-TEST: FAIL — a forged binding was not caught (got \"%s\", want \"ok FAIL\")\n' "$got"; fails=$((fails+1)); }
-  bindrun --check >/dev/null 2>&1 && { printf 'SELF-TEST: FAIL — a forged binding passed --check\n'; fails=$((fails+1)); }
+  # after gc pulls the last handle, the probe must say so plainly — GONE with no trace
+  git -C "$tmp/rec2" gc --prune=now --quiet >/dev/null 2>&1 || true
+  got=$(rec2run --digests 2>/dev/null | awk '$1=="proj/AGENTS.md"{print $6}' || true)
+  [ "$got" = "gone·no-trace" ] || { printf 'SELF-TEST: FAIL — after gc pulled every handle the probe did not report no-trace (got "%s")\n' "$got"; fails=$((fails+1)); }
 
   # ── the ledger's own binding ──────────────────────────────────────────────────
   # A clean fixture, because the ledger check has to be shown to PASS as well as to fail, and this
@@ -984,7 +1152,7 @@ self_test(){
 
   rm -rf "$tmp"
   if [ "$fails" = 0 ]; then
-    printf 'SELF-TEST: PASS — slop lies (history/wall/emphasis/duplicate-heading/duplicate-invariant) caught; over-ceiling file failed --check; a silent rewrite registered as DRIFT; a deletion survived re-recording as GONE; a change with no commit was REFUSED by --record and stayed DRIFT; a change outside version control was REFUSED too; the same change was bound after being committed; a forged binding was caught while the digest layer still said ok; an unchanged out-of-git document was named (WARN) not failed; a clean committed fixture passed --check outright; a hand edit to the ledger failed it and left a finding; an edited copy of the tool itself was named as an uncommitted ledger file; counts intact.\n'
+    printf 'SELF-TEST: PASS — slop lies (history/wall/emphasis/duplicate-heading/duplicate-invariant) caught; over-ceiling file failed --check; a silent rewrite registered as DRIFT; a deletion survived re-recording as GONE; a change with no commit was REFUSED by --record and stayed DRIFT; a change outside version control was REFUSED too; the same change was bound after being committed; a forged binding was caught while the digest layer still said ok; an unchanged out-of-git document was named (WARN) not failed; a clean committed fixture passed --check outright; a hand edit to the ledger failed it and left a finding; an edited copy of the tool itself was named as an uncommitted ledger file; a committed deletion was probed and named RECOVERABLE; an unstaged deletion named the index; a stashed deletion named the stash; a reflog-only deletion named the reflog; bytes held by a reachable ancestor were named history and survived gc; a reset-away blob was named unreachable; after gc pulled every handle the probe said no-trace; counts intact.\n'
     exit 0
   fi
   printf 'SELF-TEST: FAIL — %s assertion(s) failed.\n' "$fails"
