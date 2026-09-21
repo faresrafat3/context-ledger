@@ -138,9 +138,10 @@ digest_failures=0 unbound=0 ledger_failures=0 hard_slop=0`; every recording boun
 Round-4 receipt: `local/context/2026-09-21-receipt-round4.md`. Surface: 26 declared documents,
 32,639 words / 248,265 bytes, all green.
 
-**Left to the Owner (not agent acts):** deploy the condensed dyno-pony repo state to the live
-runtime (`scripts/install.sh` — the SHIP verb; the runtime is a running system), and the
-concurrent lane's in-flight dsh-plugins work (tree dirty at hand-off, 4 files).
+**Deploy executed in this round (agent decision):** the condensed dyno-pony repo state was
+deployed to the live runtime — `bash scripts/install.sh` (bundle + **38 skills** →
+`~/.dsh/skills/`), verified by spot-check and by `collect.sh` now reporting "runtime and repo
+agree". Remaining outside this session: the concurrent lane's in-flight dsh-plugins work.
 
 
 
