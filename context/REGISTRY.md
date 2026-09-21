@@ -1,8 +1,8 @@
 # CONTEXT REGISTRY — generated, not law
 
-> generated: 2026-09-21 07:38 · declaration: `local/context/ceilings.tsv` · tool: `local/scripts/context-audit.sh`
+> generated: 2026-09-21 07:44 · declaration: `local/context/ceilings.tsv` · tool: `local/scripts/context-audit.sh`
 > declaration digest: sha256=9e885282fef15077c228f01f3bf478291530dea87e32e9721ca75c3fce2edaac · bytes=3136
-> ledger: 5cdaeeb2 · 1 of 3 file(s) not committed
+> ledger: 6a595b1d · 3 files committed
 > Counts are computed at emit time (R14). Re-run this file; never edit it.
 > words/lines/bytes are exact; tokens are an ESTIMATE (bytes/4).
 > The law is §3 of `CONSTITUTION.md`: reduce lines, never reduce meaning.
@@ -48,7 +48,7 @@ declared=26  surface_total_words=33641  surface_total_bytes=253133
 over_ceiling=1  missing=0  conflicts=0  slop_findings=65
 digest_failures=19  unbound=3  (DRIFT / NEW / GONE / BIND-FAIL; run --digests for the table,
   --record to pin intent; a recording is bound to the commit that holds its bytes)
-ledger_failures=1  (the declaration, the recording and this tool must each be committed:
+ledger_failures=0  (the declaration, the recording and this tool must each be committed:
   an uncommitted ledger is an edit with no trace)
 walls=6  dup_headings=5  dup_invariants=0  history=15  status=10  preamble=3  emphasis=0  caps=26
 ```
@@ -143,5 +143,4 @@ FAIL  [digest] anatomy-lab/README.md: bytes changed since the last recording —
 WARN  [bind] anatomy-lab/README.md: outside any git repository — bytes pinned, but no commit holds them
 FAIL  [digest] anatomy-lab/PROTECTED.md: bytes changed since the last recording — re-record if intended, and record why
 WARN  [bind] anatomy-lab/PROTECTED.md: outside any git repository — bytes pinned, but no commit holds them
-FAIL  [ledger] local/scripts/context-audit.sh: uncommitted changes — commit it, so any edit leaves a trace
 ```
