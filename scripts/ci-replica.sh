@@ -31,17 +31,18 @@ fail(){ printf '::error::%s\n' "$1"; exit 1; }
 
 [ -f "$DIGESTS" ] || fail "nothing to verify against: $DIGESTS is absent"
 
+CRED=()
 if [ -n "${LEDGER_PAT:-}" ]; then
   export LEDGER_PAT
-  # the token never reaches a URL or a log line: git gets it through a credential helper
-  git config --global credential.helper '!f() { test "$1" = get && { echo username=x-access-token; echo "password=$LEDGER_PAT"; }; }; f'
+  # the token reaches git per clone — never a URL, a log line, or the workstation's own config
+  CRED=(-c 'credential.helper=!f() { test "$1" = get && { echo username=x-access-token; echo "password=$LEDGER_PAT"; }; }; f')
   echo "LEDGER_PAT present — checking all nine repositories"
 else
   echo "LEDGER_PAT absent — checking the public repositories and naming the gap"
 fi
 
 rm -rf "$H"; mkdir -p "$H"
-clone(){ git clone -q --no-tags "https://github.com/faresrafat3/$1.git" "$2"; }
+clone(){ git clone -q --no-tags ${CRED[@]+"${CRED[@]}"} "https://github.com/faresrafat3/$1.git" "$2"; }
 
 # the commit the rows under one path prefix are bound to ("" is the root repository, whose rows have
 # no prefix); more than one answer means the ledger itself is inconsistent, and that is fatal
