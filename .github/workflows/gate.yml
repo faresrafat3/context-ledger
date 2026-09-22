@@ -73,15 +73,21 @@ jobs:
           out=$("$H/local/scripts/context-audit.sh" --check 2>&1)
           rc=$?
           printf '%s\n' "$out"
+          # Exit 2 alone proves nothing: a load failure — no law file, no declaration — exits 2 too
+          # (measured). The refusal is identified by its message, so require the whole contract: the
+          # refusal itself, the checkout this copy belongs to, and the home it would otherwise measure.
+          Hc=$(cd -P "$H" && pwd); HOMEc=$(cd -P "$HOME" && pwd)
           if [ "$rc" -ne 2 ]; then
             echo "::error::expected the guard to refuse with exit 2; got $rc"
             exit 1
           fi
-          if ! printf '%s\n' "$out" | grep -q 'refusing to run'; then
-            echo "::error::expected the live-home guard's refusal; got something else"
-            exit 1
-          fi
-          echo "exit=2, refusal — the guard holds against a real checkout"
+          for needle in "refusing to run" "belongs to the checkout at $Hc" "the live home ($HOMEc)"; do
+            if ! printf '%s\n' "$out" | grep -qF "$needle"; then
+              echo "::error::the refusal does not name \"$needle\" — that is not the live-home guard"
+              exit 1
+            fi
+          done
+          echo "exit=2, refusal naming $Hc and $HOMEc — the guard holds against a real checkout"
 
       # Same checkout, HOME_DIR named (the documented recipe): the pattern runs, and what it must then
       # say is that the surface is ABSENT — measured, not assumed.
