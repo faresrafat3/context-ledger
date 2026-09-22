@@ -3,26 +3,21 @@ name: context gate
 # WHAT CI CAN AND CANNOT ENFORCE HERE — read this before trusting a green badge.
 #
 # A clone of this repo is the LEDGER, not the workspace. The 26 documents `--check` measures live in
-# sibling repositories of one home, so a real check needs a REPLICA of that home: the `full-check` job
-# clones all nine repositories into one and runs the real thing.
+# sibling repositories of one home, so a real check needs a REPLICA of that home. The replica job
+# delegates to `scripts/ci-replica.sh`, which builds it at the revisions the ledger binds and asserts
+# per-row cleanliness — the same script runs on a workstation, so what CI says can be reproduced.
 #
-# Six of those repos are public and three are private by design. `knowledge-factory` stays private
-# because its history holds live bearer tokens (see `compliance/2026-09-22-secret-exposure-knowledge-factory.md`);
-# `home-root` and `anatomy-lab` are private because the law text and the lab corpus are the Owner's.
-# So `full-check` runs in two honest modes:
-#   * with the `LEDGER_PAT` secret present — all nine cloned, and the job passes only on a real 26/26
-#     PASS with every counter zero. This is the gate the Owner runs by hand, run automatically;
-#   * without it (forks, or before the secret is added) — the six public repos cloned, the rest
-#     measured as absent, and the documents it could not check named one by one. It never claims a
-#     pass it did not earn.
+# Six of the nine repositories are public and three are private by design. `knowledge-factory` stays
+# private because its history holds live bearer tokens (see
+# `compliance/2026-09-22-secret-exposure-knowledge-factory.md`); `home-root` and `anatomy-lab` are
+# private because the law text and the lab corpus are the Owner's. So the replica job runs in two
+# honest modes: with the `LEDGER_PAT` secret it checks all nine and passes only on a real 26/26 PASS;
+# without it — forks, or before the secret exists — it checks the six public repositories, names the
+# documents it could not check, and never claims a pass it did not earn.
 #
-# The other two jobs need no secrets and enforce what is true of the published ledger alone:
-#   * the tool's own battery (`--self-test`) is hermetic — it plants its lies in mktemp fixtures, not
-#     in the live home — and covers the slop detectors, the digest layer, the recovery probe,
-#     `--recover`, the ledger's own binding, and the five live-home-guard shapes;
-#   * the gate FAILS CLOSED when the declared surface is absent, and the live-home guard behaves
-#     against a real home-shaped checkout. An audit tool that exits 0 when it cannot find its inputs
-#     is worse than no audit tool; that is the regression those steps exist to catch.
+# The other two jobs need no secrets and enforce what is true of the published ledger alone: the
+# tool's hermetic battery, and the gate FAILING CLOSED when its declared surface is absent (an audit
+# tool that exits 0 when it cannot find its inputs is worse than no audit tool).
 
 on:
   push:
@@ -38,7 +33,9 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - name: syntax
-        run: bash -n scripts/context-audit.sh
+        run: |
+          bash -n scripts/context-audit.sh
+          bash -n scripts/ci-replica.sh
       - name: battery
         run: scripts/context-audit.sh --self-test
 
@@ -65,8 +62,8 @@ jobs:
           fi
           echo "exit=$rc, no PASS — fail-closed holds"
 
-      # A home-shaped checkout with HOME_DIR unnamed: the live-home guard must refuse it, because the run
-      # would otherwise measure the runner's home ($HOME) rather than the checkout it belongs to.
+      # A home-shaped checkout with HOME_DIR unnamed: the live-home guard must refuse it, because the
+      # run would otherwise measure the runner's home ($HOME) rather than the checkout it belongs to.
       - name: the guard refuses a checkout it does not belong to
         run: |
           set +e
@@ -137,83 +134,7 @@ jobs:
         with:
           path: ledger
 
-      - name: build the replica and check it
+      - name: build the replica at the audited revisions and check it
         env:
           LEDGER_PAT: ${{ secrets.LEDGER_PAT }}
-        run: |
-          set -euo pipefail
-          H="$RUNNER_TEMP/home"
-          mkdir -p "$H"
-
-          # The token never appears in a URL or a log line: it reaches git through a credential helper.
-          if [ -n "${LEDGER_PAT:-}" ]; then
-            export LEDGER_PAT
-            git config --global credential.helper '!f() { test "$1" = get && { echo username=x-access-token; echo "password=$LEDGER_PAT"; }; }; f'
-            echo "LEDGER_PAT present — checking all nine repositories"
-          else
-            echo "LEDGER_PAT absent — checking the public repositories and naming the gap"
-          fi
-          clone(){ git clone -q --no-tags "https://github.com/faresrafat3/$1.git" "$2"; }
-
-          if [ -n "${LEDGER_PAT:-}" ]; then clone home-root "$H"; else : > "$H/CONSTITUTION.md"; fi
-          mkdir -p "$H/local" && cp -a ledger/. "$H/local/"
-          for r in "crew-research-council crew-research-council" \
-                   "colony-kernel Projects/colony-kernel" \
-                   "dyno-pony Projects/dyno-pony" \
-                   "notrick Projects/notrick" \
-                   "deepseek-harness Projects/deepseek-harness"; do
-            clone "${r%% *}" "$H/${r##* }"
-          done
-          if [ -n "${LEDGER_PAT:-}" ]; then
-            clone anatomy-lab "$H/anatomy-lab"
-            clone knowledge-factory "$H/Projects/knowledge-factory"
-          fi
-
-          out=$(HOME_DIR="$H" "$H/local/scripts/context-audit.sh" --check 2>&1) && rc=0 || rc=$?
-          printf '%s\n' "$out" | tail -20
-          summary=$(printf '%s\n' "$out" | grep -m1 '^check: over_ceiling=' || true)
-
-          case "$summary" in
-            *ledger_failures=0*) ;;
-            *) echo "::error::the ledger's own binding is not clean in the replica: $summary"; exit 1 ;;
-          esac
-
-          # Declared documents the replica does not contain — computed from the declaration, never hard-coded.
-          absent=0
-          unchecked=""
-          while IFS=$'\t' read -r p _; do
-            case "$p" in \#*|'') continue ;; esac
-            if [ ! -e "$H/$p" ]; then
-              absent=$((absent + 1))
-              unchecked="$unchecked$p "
-            fi
-          done < ledger/context/ceilings.tsv
-
-          if [ -n "${LEDGER_PAT:-}" ]; then
-            if [ "$rc" -ne 0 ]; then
-              echo "::error::the full check did not pass with every repository reachable: $summary"
-              exit 1
-            fi
-            printf '%s\n' "$out" | grep -q 'check: PASS' \
-              || { echo "::error::exit 0 without a PASS line"; exit 1; }
-            case "$summary" in
-              *missing=0*'digest_failures=0'*) ;;
-              *) echo "::error::a PASS with non-zero counters is not a pass: $summary"; exit 1 ;;
-            esac
-            echo "FULL CHECK PASSED — every declared document present, every counter zero: $summary" >> "$GITHUB_STEP_SUMMARY"
-          else
-            if [ "$rc" -eq 0 ] || printf '%s\n' "$out" | grep -q 'check: PASS'; then
-              echo "::error::a public-only replica claimed a pass: $summary"
-              exit 1
-            fi
-            got=$(printf '%s\n' "$summary" | sed -n 's/.*missing=\([0-9]*\).*/\1/p')
-            if [ "$got" != "$absent" ]; then
-              echo "::error::missing=$got but $absent declared document(s) are absent from the replica"
-              exit 1
-            fi
-            {
-              echo "public-only replica: $got declared document(s) measured absent, and the gate refused to pass"
-              echo "unchecked: $unchecked"
-              echo "Add a fine-grained read-only PAT as the repository secret LEDGER_PAT to check all nine repositories."
-            } >> "$GITHUB_STEP_SUMMARY"
-          fi
+        run: bash ledger/scripts/ci-replica.sh ledger
