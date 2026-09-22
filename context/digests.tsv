@@ -10,7 +10,7 @@
 # the surface. A first pin of an out-of-git document is allowed (nothing is overwritten).
 # --record never drops a digest for a file that is gone: it carries the old digest forward,
 # so a deletion cannot be laundered by re-recording the surface without it.
-# recorded: 2026-09-21 11:46
+# recorded: 2026-09-22 06:10
 CONSTITUTION.md	e6f215fb4079e684a43769b2611d77d29026175735a938d0415351eeca201c21	1311	89bf545a86237a7b3e47f34959136895adde81d4	acabaad82fb87bd4b8f968864a2515fb4e830d22	committed
 Projects/notrick/AGENTS.md	498833c6625c224c27fc227807c6bb55ea09f7933f0de086c99b6aeebe1106e6	806	45128ef4cbdb7bda478de4710654700df2780a91	b60ae35b82a8bb0cec43c9d7d2cf5a19dcb1a954	committed
 Projects/notrick/RULES.md	69184cdcbfc7e9a687f893087b704329404732a0458bbc42c6f388dc294816a4	838	da4e85f12c1ea96975c8bdf7593e8eda41b86ddf	b60ae35b82a8bb0cec43c9d7d2cf5a19dcb1a954	committed
