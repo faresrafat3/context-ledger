@@ -997,8 +997,14 @@ report(){
 
 # ── self-test — the known-positive rule, same discipline as constitution-sweep.sh ──
 self_test(){
-  local tmp fails=0 got real_const="$CONSTITUTION" row_before row_after row_after2
+  local tmp fails=0 got law row_before row_after row_after2
   tmp=$(mktemp -d)
+  # Hermetic by construction: the fixtures get their own law file. The first version of this battery
+  # passed the LIVE `$CONSTITUTION` into every fixture run, so on a machine without
+  # `$HOME/CONSTITUTION.md` — a CI runner, a fresh clone — the load path refused and twelve
+  # assertions reported failures that had nothing to do with what they were testing.
+  law="$tmp/CONSTITUTION.md"
+  printf '# Fixture law\n\nOperations must never rename the archive directory in place.\n' > "$law"
   mkdir -p "$tmp/fixture/proj"
   {
     printf '# Fixture context contract\n\n'
@@ -1020,7 +1026,7 @@ self_test(){
   } > "$tmp/ceilings.tsv"
 
   # re-run the same code path against the fixture, in a subshell
-  got=$(CEILINGS="$tmp/ceilings.tsv" HOME_DIR="$tmp" CONSTITUTION="$real_const" \
+  got=$(CEILINGS="$tmp/ceilings.tsv" HOME_DIR="$tmp" CONSTITUTION="$law" \
         bash "$0" --slop 2>/dev/null || true)
   printf '%s' "$got" | grep -q '^HISTORY' || { printf 'SELF-TEST: FAIL — planted history line not caught\n'; fails=$((fails+1)); }
   printf '%s' "$got" | grep -q '^WALL'    || { printf 'SELF-TEST: FAIL — planted paragraph wall not caught\n'; fails=$((fails+1)); }
@@ -1028,26 +1034,26 @@ self_test(){
   printf '%s' "$got" | grep -q '^DUP-HEADING' || { printf 'SELF-TEST: FAIL — planted duplicate heading not caught\n'; fails=$((fails+1)); }
   printf '%s' "$got" | grep -q '^DUP-INVARIANT' || { printf 'SELF-TEST: FAIL — planted duplicate invariant not caught\n'; fails=$((fails+1)); }
 
-  CEILINGS="$tmp/ceilings.tsv" HOME_DIR="$tmp" CONSTITUTION="$real_const" \
+  CEILINGS="$tmp/ceilings.tsv" HOME_DIR="$tmp" CONSTITUTION="$law" \
     bash "$0" --check >/dev/null 2>&1 && { printf 'SELF-TEST: FAIL — planted over-ceiling file passed --check\n'; fails=$((fails+1)); }
 
-  got=$(CEILINGS="$tmp/ceilings.tsv" HOME_DIR="$tmp" CONSTITUTION="$real_const" \
+  got=$(CEILINGS="$tmp/ceilings.tsv" HOME_DIR="$tmp" CONSTITUTION="$law" \
         bash "$0" 2>/dev/null | sed -n 's/^declared=\([0-9]*\).*/\1/p' || true)
   [ "$got" = 2 ] || { printf 'SELF-TEST: FAIL — declared count wrong (got %s, want 2)\n' "$got"; fails=$((fails+1)); }
 
   # the digest layer: an explicit re-record accepts intent, a silent rewrite is DRIFT, and a
   # deletion cannot be laundered by re-recording the surface without it
-  CEILINGS="$tmp/ceilings.tsv" DIGESTS="$tmp/digests.tsv" HOME_DIR="$tmp" CONSTITUTION="$real_const" \
+  CEILINGS="$tmp/ceilings.tsv" DIGESTS="$tmp/digests.tsv" HOME_DIR="$tmp" CONSTITUTION="$law" \
     bash "$0" --record >/dev/null 2>&1 || { printf 'SELF-TEST: FAIL — --record failed on the fixture\n'; fails=$((fails+1)); }
   printf 'a silent rewrite appended by the fixture\n' >> "$tmp/fixture/proj/AGENTS.md"
-  got=$(CEILINGS="$tmp/ceilings.tsv" DIGESTS="$tmp/digests.tsv" HOME_DIR="$tmp" CONSTITUTION="$real_const" \
+  got=$(CEILINGS="$tmp/ceilings.tsv" DIGESTS="$tmp/digests.tsv" HOME_DIR="$tmp" CONSTITUTION="$law" \
         bash "$0" --digests 2>/dev/null | grep -c 'DRIFT' || true)
   [ "$got" -ge 1 ] || { printf 'SELF-TEST: FAIL — planted silent rewrite not caught (DRIFT)\n'; fails=$((fails+1)); }
 
   rm -f "$tmp/fixture/proj/README.md"
-  CEILINGS="$tmp/ceilings.tsv" DIGESTS="$tmp/digests.tsv" HOME_DIR="$tmp" CONSTITUTION="$real_const" \
+  CEILINGS="$tmp/ceilings.tsv" DIGESTS="$tmp/digests.tsv" HOME_DIR="$tmp" CONSTITUTION="$law" \
     bash "$0" --record >/dev/null 2>&1 || true
-  got=$(CEILINGS="$tmp/ceilings.tsv" DIGESTS="$tmp/digests.tsv" HOME_DIR="$tmp" CONSTITUTION="$real_const" \
+  got=$(CEILINGS="$tmp/ceilings.tsv" DIGESTS="$tmp/digests.tsv" HOME_DIR="$tmp" CONSTITUTION="$law" \
         bash "$0" --digests 2>/dev/null | grep -c 'GONE' || true)
   [ "$got" -ge 1 ] || { printf 'SELF-TEST: FAIL — a deletion was laundered by re-recording the surface\n'; fails=$((fails+1)); }
 
@@ -1060,7 +1066,7 @@ self_test(){
   git -C "$tmp/rec" -c user.name=fixture -c user.email=fixture@invalid add -A >/dev/null 2>&1 || true
   git -C "$tmp/rec" -c user.name=fixture -c user.email=fixture@invalid commit -q -m 'fixture: recovery base' >/dev/null 2>&1 || true
   recrun(){ CEILINGS="$tmp/rec/ceilings.tsv" DIGESTS="$tmp/rec/digests.tsv" HOME_DIR="$tmp/rec" \
-            CONSTITUTION="$real_const" bash "$0" "$@" ; }
+            CONSTITUTION="$law" bash "$0" "$@" ; }
   recrun --record >/dev/null 2>&1 || { printf 'SELF-TEST: FAIL — --record failed on the recovery fixture\n'; fails=$((fails+1)); }
 
   # a committed deletion: the recorded commit still holds the bytes, so the finding names the way out
@@ -1129,7 +1135,7 @@ self_test(){
   git -C "$tmp/rec2" -c user.name=fixture -c user.email=fixture@invalid add -A >/dev/null 2>&1 || true
   git -C "$tmp/rec2" -c user.name=fixture -c user.email=fixture@invalid commit -q -m 'fixture: the path exists' >/dev/null 2>&1 || true
   rec2run(){ CEILINGS="$tmp/rec2/ceilings.tsv" DIGESTS="$tmp/rec2/digests.tsv" HOME_DIR="$tmp/rec2" \
-             CONSTITUTION="$real_const" bash "$0" "$@" ; }
+             CONSTITUTION="$law" bash "$0" "$@" ; }
   rec2run --record >/dev/null 2>&1 || true
   sha=$(awk -F'\t' '$1=="proj/AGENTS.md"{print $2; exit}' "$tmp/rec2/digests.tsv")
   printf 'proj/AGENTS.md\t%s\t4\n' "$sha" > "$tmp/rec2/digests.tsv"   # legacy row; the file is untracked here, so resets leave it alone
@@ -1162,7 +1168,7 @@ self_test(){
   git -C "$tmp/rec3" -c user.name=fixture -c user.email=fixture@invalid add -A >/dev/null 2>&1 || true
   git -C "$tmp/rec3" -c user.name=fixture -c user.email=fixture@invalid commit -q -m 'rec3: base' >/dev/null 2>&1 || true
   rec3run(){ CEILINGS="$tmp/rec3/ceilings.tsv" DIGESTS="$tmp/rec3/digests.tsv" HOME_DIR="$tmp/rec3" \
-             CONSTITUTION="$real_const" bash "$0" "$@" ; }
+             CONSTITUTION="$law" bash "$0" "$@" ; }
   rec3run --record >/dev/null 2>&1 || true
   rm "$tmp/rec3/proj/AGENTS.md"
   git -C "$tmp/rec3" -c user.name=fixture -c user.email=fixture@invalid add -A >/dev/null 2>&1 || true
@@ -1205,7 +1211,7 @@ self_test(){
   git -C "$tmp/ledger" -c user.name=fixture -c user.email=fixture@invalid add -A >/dev/null 2>&1 || true
   git -C "$tmp/ledger" -c user.name=fixture -c user.email=fixture@invalid commit -q -m 'fixture: clean ledger' >/dev/null 2>&1 || true
   ledrun(){ CEILINGS="$tmp/ledger/ceilings.tsv" DIGESTS="$tmp/ledger/digests.tsv" HOME_DIR="$tmp/ledger" \
-            CONSTITUTION="$real_const" bash "$0" "$@" ; }
+            CONSTITUTION="$law" bash "$0" "$@" ; }
   ledrun --record >/dev/null 2>&1 || { printf 'SELF-TEST: FAIL — --record failed on the clean ledger fixture\n'; fails=$((fails+1)); }
   git -C "$tmp/ledger" -c user.name=fixture -c user.email=fixture@invalid add -A >/dev/null 2>&1 || true
   git -C "$tmp/ledger" -c user.name=fixture -c user.email=fixture@invalid commit -q -m 'fixture: record it' >/dev/null 2>&1 || true
@@ -1226,7 +1232,7 @@ self_test(){
   git -C "$tmp/ledger" -c user.name=fixture -c user.email=fixture@invalid add -A >/dev/null 2>&1 || true
   git -C "$tmp/ledger" -c user.name=fixture -c user.email=fixture@invalid commit -q -m 'fixture: the tool' >/dev/null 2>&1 || true
   runled(){ CEILINGS="$tmp/ledger/ceilings.tsv" DIGESTS="$tmp/ledger/digests.tsv" HOME_DIR="$tmp/ledger" \
-            CONSTITUTION="$real_const" bash "$tmp/ledger/tool.sh" "$@" ; }
+            CONSTITUTION="$law" bash "$tmp/ledger/tool.sh" "$@" ; }
   runled --check >/dev/null 2>&1 || { printf 'SELF-TEST: FAIL — a committed tool copy failed --check\n'; fails=$((fails+1)); }
   printf '\n# a hand edit to the tool\n' >> "$tmp/ledger/tool.sh"
   runled --check >/dev/null 2>&1 && { printf 'SELF-TEST: FAIL — an edited tool copy passed --check\n'; fails=$((fails+1)); }
