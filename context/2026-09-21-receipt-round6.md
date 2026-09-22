@@ -89,3 +89,67 @@ This receipt is committed but not declared — same standing as the round-4 and 
 ## 7. Owner ruling
 
 __________ (empty-by-right)
+
+## 8. Addendum (same day, after §1-§7 were written): nine repositories, not one — the replica recipe
+
+The `--recover` walk that closed this round was run against a scratch replica of `$HOME`, never
+against the workspace. It proved the plan → `--yes` → verify flow on realistic state (a committed
+deletion of a declared document, restored and hash-verified), and it falsified the naive reading
+that `local/` *is* the workspace: the declared surface spans **nine repositories**, and the tool
+resolves every one of them from `$HOME_DIR`, never from its own location.
+
+### 8.1 Topology
+
+| repository | declared rows it holds |
+|---|---|
+| `$HOME` — the root repo, tracks exactly `.gitignore` and `CONSTITUTION.md` | 1 |
+| `local/` — the ledger repo (ceilings, digests, receipts, this tool) | 0 — audited by the ledger layer, not by a digest row |
+| `anatomy-lab/` | 2 |
+| `crew-research-council/` | 2 |
+| `Projects/notrick/` | 7 |
+| `Projects/deepseek-harness/` | 5 |
+| `Projects/colony-kernel/`, `Projects/dyno-pony/`, `Projects/knowledge-factory/` | 3 each |
+
+26 digest rows in all, every one `bind=committed`. Three further repos under `$HOME` —
+`.nvm/`, `.hermes/hermes-agent/`, `Projects/dsh-plugins/` — hold no declared row and are not part
+of the audited surface (`discover()` excludes `.hermes` by path filter regardless).
+
+### 8.2 The trap the recipe exists to avoid
+
+`HOME_DIR="${HOME_DIR:-${HOME}}"` (line 88). `CONSTITUTION`, `CEILINGS`, `OUT`, `abs_of`, the
+`discover()` scan and every probe/ledger-layer `git -C` hang off it. So a clone of `local/` run
+without an env override does not audit the clone — it audits the **real home**. The walk's first
+two attempts did exactly that and reported on live state; the tell was `--digests` saying `ok` for
+a document the clone did not contain, next to a green baseline. A scratch test that measures the
+live workspace is worse than no test: it looks like evidence.
+
+### 8.3 The recipe (re-run and verified 2026-09-21)
+
+```bash
+R=$(mktemp -d /tmp/rec-repl.XXXXXX)/home && mkdir -p "$R"
+git clone -q /home/fares "$R"      # outer repo FIRST — CONSTITUTION.md must land at the replica root
+for d in local anatomy-lab crew-research-council \
+         Projects/colony-kernel Projects/deepseek-harness \
+         Projects/dyno-pony Projects/knowledge-factory Projects/notrick; do
+  git clone -q "/home/fares/$d" "$R/$d"
+done
+cd "$R/local" && HOME_DIR="$R" bash "$R/local/scripts/context-audit.sh" --check   # baseline
+```
+
+Baseline at the commit set cloned (root `acabaad`, `local` `f72045b`, `anatomy-lab` `e20b65f`,
+`crew-research-council` `726049b`, `colony-kernel` `142fec0`, `deepseek-harness` `e32dad2447`,
+`dyno-pony` `441ee0c`, `knowledge-factory` `86d0557`, `notrick` `b60ae35`): **exit 0**,
+`over_ceiling=0 missing=0 conflicts=0 digest_failures=0 unbound=0 ledger_failures=0`. Plant
+losses, observe findings and run `--recover` only inside `$R`; the real workspace is read once per
+clone and never written.
+
+Two constraints the recipe carries: clone exactly the repos that hold declared rows and the ledger
+repo (the ledger layer checks the declaration, the recording and the tool are each committed —
+so a replica with local scratch edits in `local/` is red for that reason, as designed), and clone
+them at their relative paths, since resolution walks *upward* from each document's directory
+(`repo_of`), so a repo cloned to the wrong depth resolves to an ancestor repo instead — and the
+ledger layer reports that as `untracked` / `no-repo`, a failure rather than a quiet green.
+
+This addendum postdates §1-§7 and is committed on its own; like the receipts themselves it is a
+governance record, not declared in `ceilings.tsv` (round-4/5 precedent), so its bytes are proven by
+this repository's history rather than by a digest row.
