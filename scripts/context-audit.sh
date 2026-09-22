@@ -37,6 +37,8 @@
 # WHAT IT DOES NOT DO
 #   It never edits a document, never raises a ceiling, never repairs a finding, and never
 #   writes inside a protected zone. `--check` fails; it does not fix. Findings are filed.
+#   It never audits a home it does not belong to: a copy run from a checkout refuses (exit 2) with
+#   HOME_DIR unnamed rather than silently measure the live home (see THE LIVE-HOME GUARD).
 #   It never commits. The commit that binds a recording is the Owner's act; `--record` only
 #   refuses until that commit exists, so it cannot bless a change the repository does not hold.
 #   It does hold its own ledger to the same rule: `ceilings.tsv`, `digests.tsv` and this script
@@ -81,10 +83,14 @@
 # EXIT CODES
 #   0  report emitted / --check clean / --record pinned without refusing / self-test passed
 #   1  --check found a failure, or --record refused a document that no commit holds
-#   2  bad usage / missing declaration file / self-test failed / --recover refused
+#   2  bad usage / missing declaration file / self-test failed / --recover refused / a copy of
+#      this tool kept outside the home it would otherwise audit, with HOME_DIR unnamed
 #
 set -euo pipefail
 
+# Naming HOME_DIR is an act, not a default, and the guard below reads it that way.
+HOME_NAMED=0
+if [ -n "${HOME_DIR:-}" ]; then HOME_NAMED=1; fi
 HOME_DIR="${HOME_DIR:-${HOME}}"
 CONSTITUTION="${CONSTITUTION:-$HOME_DIR/CONSTITUTION.md}"
 CEILINGS="${CEILINGS:-$HOME_DIR/local/context/ceilings.tsv}"
@@ -97,6 +103,26 @@ EMPHASIS_MARKS="${EMPHASIS_MARKS:-12}"
 
 usage(){ sed -n '/^# USAGE/,/^set -euo pipefail/p' "$0" | sed '$d; s/^# \{0,1\}//'; }
 die(){ printf 'context-audit: %s\n' "$1" >&2; exit 2; }
+
+# ── THE LIVE-HOME GUARD ────────────────────────────────────────────────────────
+# Every path in this tool hangs off HOME_DIR, and HOME_DIR defaults to $HOME. So a COPY of the
+# tool kept in a checkout — the one you run to exercise a change before it lands — audits the
+# LIVE home whenever HOME_DIR is unnamed, and does it silently: the findings read like evidence
+# about the checkout while describing the workspace. `--recover --yes` would restore INTO the
+# live home. (This is not hypothetical: the round-6 replica walk measured the live home twice
+# before noticing, and only because a --digests row said `ok` for a file the clone lacked.)
+# The test is layout, not path-guessing: the root this copy belongs to is the parent of the
+# `local/` holding it, and where that root is itself home-shaped it simply is not the home being
+# audited. Naming HOME_DIR is both the fix and the statement of intent, so it is never second-guessed.
+live_home_guard(){
+  local sdir root
+  [ "$HOME_NAMED" = 0 ] || return 0
+  sdir=$(cd "$(dirname "$0")" 2>/dev/null && pwd) || return 0
+  root=$(dirname "$(dirname "$sdir")")
+  [ "${root%/}" != "${HOME_DIR%/}" ] || return 0
+  [ -f "$root/local/context/ceilings.tsv" ] || return 0
+  die "refusing to run — this copy belongs to the checkout at $root, but HOME_DIR is unnamed, so the audit would measure the live home ($HOME_DIR). Name the root you mean (HOME_DIR=$root) or run the copy that lives inside the home you mean to audit"
+}
 
 abs_of(){ case "$1" in /*) printf '%s\n' "$1" ;; *) printf '%s\n' "$HOME_DIR/$1" ;; esac; }
 lines_of(){ wc -l < "$1" | tr -d ' '; }
@@ -1207,9 +1233,22 @@ self_test(){
   got=$(runled --check 2>&1 | grep -c 'FAIL  \[ledger\] .*tool\.sh' || true)
   [ "$got" -ge 1 ] || { printf 'SELF-TEST: FAIL — an edited tool copy was not named as an uncommitted ledger file\n'; fails=$((fails+1)); }
 
+  # the live-home guard: a copy kept outside the audited home must refuse to audit the live one
+  mkdir -p "$tmp/foreign/local/scripts" "$tmp/foreign/local/context"
+  cp "$(tool_abs)" "$tmp/foreign/local/scripts/context-audit.sh"
+  printf '# fixture\n' > "$tmp/foreign/local/context/ceilings.tsv"
+  got=$(env -u HOME_DIR HOME="$tmp/elsewhere" bash "$tmp/foreign/local/scripts/context-audit.sh" --check 2>&1 || true)
+  printf '%s' "$got" | grep -q 'refusing to run' \
+    || { printf 'SELF-TEST: FAIL — a copy outside the audited home audited the live home instead of refusing\n'; fails=$((fails+1)); }
+  got=$(env -u HOME_DIR HOME="$tmp/elsewhere" HOME_DIR="$tmp/foreign" bash "$tmp/foreign/local/scripts/context-audit.sh" --check 2>&1 || true)
+  printf '%s' "$got" | grep -q 'refusing to run' \
+    && { printf 'SELF-TEST: FAIL — an explicitly named HOME_DIR was ignored by the guard\n'; fails=$((fails+1)); }
+  printf '%s' "$got" | grep -qE 'source not found|declaration not found' \
+    || { printf 'SELF-TEST: FAIL — a named HOME_DIR did not reach the normal load path\n'; fails=$((fails+1)); }
+
   rm -rf "$tmp"
   if [ "$fails" = 0 ]; then
-    printf 'SELF-TEST: PASS — slop lies (history/wall/emphasis/duplicate-heading/duplicate-invariant) caught; over-ceiling file failed --check; a silent rewrite registered as DRIFT; a deletion survived re-recording as GONE; a change with no commit was REFUSED by --record and stayed DRIFT; a change outside version control was REFUSED too; the same change was bound after being committed; a forged binding was caught while the digest layer still said ok; an unchanged out-of-git document was named (WARN) not failed; a clean committed fixture passed --check outright; a hand edit to the ledger failed it and left a finding; an edited copy of the tool itself was named as an uncommitted ledger file; a committed deletion was probed and named RECOVERABLE; an unstaged deletion named the index; a stashed deletion named the stash; a reflog-only deletion named the reflog; bytes held by a reachable ancestor were named history and survived gc; a reset-away blob was named unreachable; after gc pulled every handle the probe said no-trace; --recover showed a plan without touching the disk, --yes restored bytes that verified against the recorded digest, and it refused a path that exists, a protected zone, and a row with no git handle; counts intact.\n'
+    printf 'SELF-TEST: PASS — slop lies (history/wall/emphasis/duplicate-heading/duplicate-invariant) caught; over-ceiling file failed --check; a silent rewrite registered as DRIFT; a deletion survived re-recording as GONE; a change with no commit was REFUSED by --record and stayed DRIFT; a change outside version control was REFUSED too; the same change was bound after being committed; a forged binding was caught while the digest layer still said ok; an unchanged out-of-git document was named (WARN) not failed; a clean committed fixture passed --check outright; a hand edit to the ledger failed it and left a finding; an edited copy of the tool itself was named as an uncommitted ledger file; a committed deletion was probed and named RECOVERABLE; an unstaged deletion named the index; a stashed deletion named the stash; a reflog-only deletion named the reflog; bytes held by a reachable ancestor were named history and survived gc; a reset-away blob was named unreachable; after gc pulled every handle the probe said no-trace; --recover showed a plan without touching the disk, --yes restored bytes that verified against the recorded digest, and it refused a path that exists, a protected zone, a row with no git handle; a copy kept outside the audited home refused to audit the live one with HOME_DIR unnamed and obeyed an explicitly named HOME_DIR; counts intact.\n'
     exit 0
   fi
   printf 'SELF-TEST: FAIL — %s assertion(s) failed.\n' "$fails"
@@ -1297,6 +1336,9 @@ for a in "$@"; do
     *)           die "unknown argument: $a (try --help)" ;;
   esac
 done
+
+# before a byte is read or written: refuse a copy that would audit a home it does not belong to
+live_home_guard
 
 [ -f "$CONSTITUTION" ] || die "source not found: $CONSTITUTION"
 load_ceilings || die "declaration not found or empty: $CEILINGS"

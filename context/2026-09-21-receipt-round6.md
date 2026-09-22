@@ -123,6 +123,11 @@ two attempts did exactly that and reported on live state; the tell was `--digest
 a document the clone did not contain, next to a green baseline. A scratch test that measures the
 live workspace is worse than no test: it looks like evidence.
 
+**Closed in code the same day:** `live_home_guard` refuses (exit 2) when `HOME_DIR` is unnamed and
+the running copy's own root — home-shaped, ledger and all — is not the home being audited. The
+recipe below works because it names `HOME_DIR`; the guard carries its own two assertions in
+`--self-test`, and `--help` / `--self-test` stay usable from any copy since they never audit.
+
 ### 8.3 The recipe (re-run and verified 2026-09-21)
 
 ```bash
